@@ -960,7 +960,10 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 					/* top layer of the most-recently computed 
 					 * steady state temperature	
 					 */
-					model->last_steady->cuboid[0][i][j]); 
+					// JOHANN: layer 1 equals active Si layer of
+					// lowest die, i.e., next to package and furthest
+					// away from heatsink
+					model->last_steady->cuboid[1][i][j]);
 		
 	if(fp != stdout && fp != stderr)
 		fclose(fp);	
@@ -974,6 +977,7 @@ void dump_steady_temp_grid (grid_model_t *model, char *file)
 }
 
 /* dump temperature vector alloced using 'hotspot_vector' to 'file' */ 
+// JOHANN: added logging for hottest block
 void dump_temp_grid(grid_model_t *model, double *temp, char *file)
 {
 	int i, n, base = 0;
