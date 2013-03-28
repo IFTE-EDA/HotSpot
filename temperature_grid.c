@@ -288,7 +288,9 @@ void set_bgmap(grid_model_t *model, layer_t *layer)
 					 * be sharing it
 					 */
 						blist_append(layer->b2gmap[i][j], u, 1.0);
-						warning("overlap of functional blocks?\n");
+						// JOHANN: dropped warning since they
+						// always trigger for outline dummy blocks
+						//warning("overlap of functional blocks?\n");
 					}
 				/* boundary grid cells partially overlapped by this unit	*/
 				} else {
