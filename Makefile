@@ -59,7 +59,7 @@ OFLAGS		= -xO4 -erroff=badargtypel2w
 endif	# DEBUG = 2
 endif	# DEBUG = 1
 else	# MATHACCEL != sun	
-CC 			= gcc
+CC 			= clang++
 ifeq ($(DEBUG), 1)
 OFLAGS		= -O0 -ggdb -Wall
 else

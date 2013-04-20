@@ -13,6 +13,9 @@
 #include "flp.h"
 #include "util.h"
 
+// JOHANN
+#include <sstream>
+
 //BU_3D: We modified R-C computations to return resistance or capacitance for a specified grid cell.
 //If the grid cell does not have a unique value assigned in the flp file, we return the default values for that layer.
 
@@ -937,38 +940,43 @@ void set_temp_grid(grid_model_t *model, double *temp, double val)
 void dump_top_layer_temp_grid (grid_model_t *model, char *file, 
 										grid_model_vector_t *temp)
 {
-	int i, j;
+	int i, j, layer;
 	char str[STR_SIZE];
 	FILE *fp;
 
 	if (!model->r_ready)
 		fatal("R model not ready\n");
 
-	if (!strcasecmp(file, "stdout"))
-		fp = stdout;
-	else if (!strcasecmp(file, "stderr"))
-		fp = stderr;
-	else 	
-		fp = fopen (file, "w");
+	// JOHANN
+	// dump grids of all layers separately
+	for (layer = 0; layer < model->n_layers; layer++) {
 
-	if (!fp) {
-		sprintf (str,"error: %s could not be opened for writing\n", file);
-		fatal(str);
+		if (!strcasecmp(file, "stdout"))
+			fp = stdout;
+		else if (!strcasecmp(file, "stderr"))
+			fp = stderr;
+		else {
+			// JOHANN
+			// separate files for layers
+			std::stringstream layer_file;
+			layer_file << file << ".layer_" << layer;
+
+			fp = fopen (layer_file.str().c_str(), "w");
+		}
+
+		if (!fp) {
+			sprintf (str,"error: %s could not be opened for writing\n", file);
+			fatal(str);
+		}
+
+		for(i=0;  i < model->rows; i++)
+			for(j=0;  j < model->cols; j++)
+				fprintf(fp, "%d\t%.2f\n", i*model->cols+j, 
+						model->last_steady->cuboid[layer][i][j]);
+			
+		if(fp != stdout && fp != stderr)
+			fclose(fp);
 	}
-
-	for(i=0;  i < model->rows; i++)
-		for(j=0;  j < model->cols; j++)
-			fprintf(fp, "%d\t%.2f\n", i*model->cols+j, 
-					/* top layer of the most-recently computed 
-					 * steady state temperature	
-					 */
-					// JOHANN: layer 1 equals active Si layer of
-					// lowest die, i.e., next to package and furthest
-					// away from heatsink
-					model->last_steady->cuboid[1][i][j]);
-		
-	if(fp != stdout && fp != stderr)
-		fclose(fp);	
 }
 
 /* dump the steady state grid temperatures of the top layer onto 'file'	*/
