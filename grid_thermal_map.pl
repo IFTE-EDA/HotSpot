@@ -40,7 +40,7 @@ sub usage () {
 &usage() if (@ARGV != 2 && @ARGV != 4 && @ARGV != 6 || ! -f $ARGV[0] || ! -f $ARGV[1]);
 
 #constants used throughout the program
-	my $num_levels=21;			#number of colors used
+	my $num_levels=9;			#number of colors used
 	my $max_rotate=200; 		#maximum hue rotation
 	my $floor_map_path=$ARGV[0];#path to the file containing floorplan
 	my $temp_map_path=$ARGV[1]; #path to the grid temperature file 
@@ -72,27 +72,37 @@ if (@ARGV >= 4) {
 # define my palette with 21 RGB colors, from red to green to blue 
 my @palette;
 
-	$palette[0]='255,0,0';
-	$palette[1]='255,51,0';
-	$palette[2]='255,102,0';
-	$palette[3]='255,153,0';
-	$palette[4]='255,204,0';
-	$palette[5]='255,255,0';
-	$palette[6]='204,255,0';
-	$palette[7]='153,255,0';
-	$palette[8]='102,255,0';
-	$palette[9]='51,255,0';
-	$palette[10]='0,255,0';
-	$palette[11]='0,255,51';
-	$palette[12]='0,255,102';
-	$palette[13]='0,255,153';
-	$palette[14]='0,255,204';
-	$palette[15]='0,255,255';
-	$palette[16]='0,204,255';
-	$palette[17]='0,153,255';
-	$palette[18]='0,102,255';
-	$palette[19]='0,51,255';
-	$palette[20]='0,0,255';
+#	$palette[0]='255,0,0';
+#	$palette[1]='255,51,0';
+#	$palette[2]='255,102,0';
+#	$palette[3]='255,153,0';
+#	$palette[4]='255,204,0';
+#	$palette[5]='255,255,0';
+#	$palette[6]='204,255,0';
+#	$palette[7]='153,255,0';
+#	$palette[8]='102,255,0';
+#	$palette[9]='51,255,0';
+#	$palette[10]='0,255,0';
+#	$palette[11]='0,255,51';
+#	$palette[12]='0,255,102';
+#	$palette[13]='0,255,153';
+#	$palette[14]='0,255,204';
+#	$palette[15]='0,255,255';
+#	$palette[16]='0,204,255';
+#	$palette[17]='0,153,255';
+#	$palette[18]='0,102,255';
+#	$palette[19]='0,51,255';
+#	$palette[20]='0,0,255';
+
+	$palette[8]='#000090';
+	$palette[7]='#000fff';
+	$palette[6]='#0090ff';
+	$palette[5]='#0fffee';
+	$palette[4]='#90ff70';
+	$palette[3]='#ffee00';
+	$palette[2]='#ff7000';
+	$palette[1]='#ee0000';
+	$palette[0]='#7f0000';
 	
 {#generate the SVG for the floorplan
 
@@ -170,7 +180,7 @@ if (@ARGV == 6) {
 			}
 			$tm.="\t".'<rect x="'.@{$_}[1] .'" y="'. @{$_}[2] .
 			'" width="'.$w1 .'" height="'.$h1 .
-			'" style="fill:rgb(' .$palette[$level].')" />'."\n";
+			'" style="fill:' .$palette[$level].'" />'."\n";
 		}
 	}
 	}
@@ -227,7 +237,7 @@ if (@ARGV == 6) {
 #			$level=int(($max_t-(@{$_}[5]))/($max_t-$min_t)*($num_levels-1));
 			$fp.="\t".'<rect x="'.$clr_xmin .'" y="'. $clr_ymin .
 			'" width="'.$w2 .'" height="'.$h2 .
-			'" style="fill:rgb(' .$palette[$i].'); stroke:none" />'."\n";
+			'" style="fill:' .$palette[$i].'; stroke:none" />'."\n";
 			if ($i%3==0) {
 				$txt_ymin=$clr_ymin+$h2*0.5;
 				$scale_value=($max_t-$min_t)*(1-$i/($num_levels-1))+$min_t;
