@@ -40,7 +40,7 @@ sub usage () {
 &usage() if (@ARGV != 2 && @ARGV != 4 && @ARGV != 6 || ! -f $ARGV[0] || ! -f $ARGV[1]);
 
 #constants used throughout the program
-	my $num_levels=9;			#number of colors used
+	my $num_levels=128;			#number of colors used
 	my $max_rotate=200; 		#maximum hue rotation
 	my $floor_map_path=$ARGV[0];#path to the file containing floorplan
 	my $temp_map_path=$ARGV[1]; #path to the grid temperature file 
@@ -69,40 +69,137 @@ if (@ARGV >= 4) {
 	$col = $ARGV[3];
 }
 
-# define my palette with 21 RGB colors, from red to green to blue 
+# define my palette, derived from gnuplot palette
 my @palette;
 
-#	$palette[0]='255,0,0';
-#	$palette[1]='255,51,0';
-#	$palette[2]='255,102,0';
-#	$palette[3]='255,153,0';
-#	$palette[4]='255,204,0';
-#	$palette[5]='255,255,0';
-#	$palette[6]='204,255,0';
-#	$palette[7]='153,255,0';
-#	$palette[8]='102,255,0';
-#	$palette[9]='51,255,0';
-#	$palette[10]='0,255,0';
-#	$palette[11]='0,255,51';
-#	$palette[12]='0,255,102';
-#	$palette[13]='0,255,153';
-#	$palette[14]='0,255,204';
-#	$palette[15]='0,255,255';
-#	$palette[16]='0,204,255';
-#	$palette[17]='0,153,255';
-#	$palette[18]='0,102,255';
-#	$palette[19]='0,51,255';
-#	$palette[20]='0,0,255';
-
-	$palette[8]='#000090';
-	$palette[7]='#000fff';
-	$palette[6]='#0090ff';
-	$palette[5]='#0fffee';
-	$palette[4]='#90ff70';
-	$palette[3]='#ffee00';
-	$palette[2]='#ff7000';
-	$palette[1]='#ee0000';
-	$palette[0]='#7f0000';
+$palette[127]='  0,   0, 144';
+$palette[126]='  0,   1, 151';
+$palette[125]='  0,   2, 158';
+$palette[124]='  0,   3, 165';
+$palette[123]='  0,   4, 172';
+$palette[122]='  0,   5, 179';
+$palette[121]='  0,   6, 186';
+$palette[120]='  0,   7, 193';
+$palette[119]='  0,   8, 200';
+$palette[118]='  0,   8, 207';
+$palette[117]='  0,   9, 214';
+$palette[116]='  0,  10, 220';
+$palette[115]='  0,  11, 227';
+$palette[114]='  0,  12, 234';
+$palette[113]='  0,  13, 241';
+$palette[112]='  0,  14, 248';
+$palette[111]='  0,  15, 255';
+$palette[110]='  0,  23, 255';
+$palette[109]='  0,  31, 255';
+$palette[108]='  0,  39, 255';
+$palette[107]='  0,  48, 255';
+$palette[106]='  0,  55, 255';
+$palette[105]='  0,  64, 255';
+$palette[104]='  0,  72, 255';
+$palette[103]='  0,  80, 255';
+$palette[102]='  0,  88, 255';
+$palette[101]='  0,  96, 255';
+$palette[100]='  0, 104, 255';
+$palette[99]='  0, 112, 255';
+$palette[98]='  0, 120, 255';
+$palette[97]='  0, 128, 255';
+$palette[96]='  0, 136, 255';
+$palette[95]='  0, 144, 255';
+$palette[94]='  1, 151, 254';
+$palette[93]='  2, 158, 253';
+$palette[92]='  3, 165, 252';
+$palette[91]='  4, 172, 251';
+$palette[90]='  5, 179, 250';
+$palette[89]='  6, 186, 249';
+$palette[88]='  7, 193, 248';
+$palette[87]='  8, 200, 246';
+$palette[86]='  8, 206, 245';
+$palette[85]='  9, 213, 244';
+$palette[84]=' 10, 221, 243';
+$palette[83]=' 11, 227, 242';
+$palette[82]=' 12, 234, 241';
+$palette[81]=' 13, 241, 240';
+$palette[80]=' 14, 248, 239';
+$palette[79]=' 15, 255, 238';
+$palette[78]=' 23, 255, 230';
+$palette[77]=' 31, 255, 222';
+$palette[76]=' 40, 255, 214';
+$palette[75]=' 47, 255, 206';
+$palette[74]=' 56, 255, 198';
+$palette[73]=' 63, 255, 191';
+$palette[72]=' 72, 255, 183';
+$palette[71]=' 80, 255, 175';
+$palette[70]=' 88, 255, 167';
+$palette[69]=' 96, 255, 159';
+$palette[68]='104, 255, 151';
+$palette[67]='112, 255, 143';
+$palette[66]='120, 255, 135';
+$palette[65]='128, 255, 128';
+$palette[64]='136, 255, 120';
+$palette[63]='144, 255, 112';
+$palette[62]='151, 254, 105';
+$palette[61]='158, 253,  98';
+$palette[60]='165, 252,  91';
+$palette[59]='172, 251,  84';
+$palette[58]='179, 250,  77';
+$palette[57]='186, 249,  70';
+$palette[56]='193, 248,  63';
+$palette[55]='200, 246,  56';
+$palette[54]='207, 245,  49';
+$palette[53]='214, 244,  42';
+$palette[52]='220, 243,  35';
+$palette[51]='227, 242,  28';
+$palette[50]='234, 241,  21';
+$palette[49]='241, 240,  14';
+$palette[48]='248, 239,   7';
+$palette[47]='255, 238,   0';
+$palette[46]='255, 230,   0';
+$palette[45]='255, 222,   0';
+$palette[44]='255, 214,   0';
+$palette[43]='255, 206,   0';
+$palette[42]='255, 199,   0';
+$palette[41]='255, 191,   0';
+$palette[40]='255, 183,   0';
+$palette[39]='255, 175,   0';
+$palette[38]='255, 167,   0';
+$palette[37]='255, 159,   0';
+$palette[36]='255, 151,   0';
+$palette[35]='255, 143,   0';
+$palette[34]='255, 136,   0';
+$palette[33]='255, 127,   0';
+$palette[32]='255, 120,   0';
+$palette[31]='255, 112,   0';
+$palette[30]='254, 105,   0';
+$palette[29]='253,  98,   0';
+$palette[28]='252,  91,   0';
+$palette[27]='251,  84,   0';
+$palette[26]='250,  77,   0';
+$palette[25]='249,  70,   0';
+$palette[24]='248,  63,   0';
+$palette[23]='246,  56,   0';
+$palette[22]='245,  49,   0';
+$palette[21]='244,  42,   0';
+$palette[20]='243,  35,   0';
+$palette[19]='242,  28,   0';
+$palette[18]='241,  21,   0';
+$palette[17]='240,  14,   0';
+$palette[16]='239,   7,   0';
+$palette[15]='238,   0,   0';
+$palette[14]='231,   0,   0';
+$palette[13]='224,   0,   0';
+$palette[12]='217,   0,   0';
+$palette[11]='210,   0,   0';
+$palette[10]='203,   0,   0';
+$palette[9]='196,   0,   0';
+$palette[8]='189,   0,   0';
+$palette[7]='182,   0,   0';
+$palette[6]='175,   0,   0';
+$palette[5]='168,   0,   0';
+$palette[4]='162,   0,   0';
+$palette[3]='155,   0,   0';
+$palette[2]='148,   0,   0';
+$palette[1]='141,   0,   0';
+$palette[0]='134,   0,   0';
 	
 {#generate the SVG for the floorplan
 
@@ -180,7 +277,7 @@ if (@ARGV == 6) {
 			}
 			$tm.="\t".'<rect x="'.@{$_}[1] .'" y="'. @{$_}[2] .
 			'" width="'.$w1 .'" height="'.$h1 .
-			'" style="fill:' .$palette[$level].'" />'."\n";
+			'" style="fill:rgb(' .$palette[$level].')" />'."\n";
 		}
 	}
 	}
@@ -224,7 +321,7 @@ if (@ARGV == 6) {
 	my $i;
 	my $txt_ymin;
 	my $w2=$max_x*0.05;
-	my $h2=$max_y*0.025;
+	my $h2=$max_y*0.005;
 	my $clr_xmin=$max_x*1.1;
 	my $clr_ymin=$max_y*0.05;
 	my $scale_xmin=$max_x*1.05;
@@ -237,8 +334,8 @@ if (@ARGV == 6) {
 #			$level=int(($max_t-(@{$_}[5]))/($max_t-$min_t)*($num_levels-1));
 			$fp.="\t".'<rect x="'.$clr_xmin .'" y="'. $clr_ymin .
 			'" width="'.$w2 .'" height="'.$h2 .
-			'" style="fill:' .$palette[$i].'; stroke:none" />'."\n";
-			if ($i%3==0) {
+			'" style="fill:rgb(' .$palette[$i].'); stroke:none" />'."\n";
+			if ($i%13==0) {
 				$txt_ymin=$clr_ymin+$h2*0.5;
 				$scale_value=($max_t-$min_t)*(1-$i/($num_levels-1))+$min_t;
 				$scale_value=~s/^(\d+)\.(\d)(\d)\d+/$1\.$2$3/;
