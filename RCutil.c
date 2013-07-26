@@ -294,10 +294,10 @@ void rk4_core(void *model, double *y, double *k1, void *p, int n, double h, doub
 #define RK4_MAXUP		5.0
 #define RK4_MAXDOWN		10.0
 #define RK4_PRECISION	0.01
-double rk4(void *model, double *y, void *p, int n, double h, double *yout, slope_fn_ptr f)
+double rk4(void *model, double *y, void *p, int n, double *h, double *yout, slope_fn_ptr f)
 {
 	int i;
-	double *k1, *t1, *t2, *ytemp, max, new_h = h;
+	double *k1, *t1, *t2, *ytemp, max, new_h = (*h);
 
 	k1 = dvector(n);
 	t1 = dvector(n);
@@ -309,19 +309,19 @@ double rk4(void *model, double *y, void *p, int n, double h, double *yout, slope
 
 	/* try until accuracy is achieved	*/
 	do {
-		h = new_h;
+		(*h) = new_h;
 
 		/* try RK4 once with normal step size	*/
-		rk4_core(model, y, k1, p, n, h, ytemp, f);
+		rk4_core(model, y, k1, p, n, (*h), ytemp, f);
 
 		/* repeat it with two half-steps	*/
-		rk4_core(model, y, k1, p, n, h/2.0, t1, f);
+		rk4_core(model, y, k1, p, n, (*h)/2.0, t1, f);
 
 		/* y after 1st half-step is in t1. re-evaluate k1 for this	*/
 		(*f)(model, t1, p, k1);
 
 		/* get output of the second half-step in t2	*/	
-		rk4_core(model, t1, k1, p, n, h/2.0, t2, f);
+		rk4_core(model, t1, k1, p, n, (*h)/2.0, t2, f);
 
 		/* find the max diff between these two results:
 		 * use t1 to store the diff
@@ -360,17 +360,17 @@ double rk4(void *model, double *y, void *p, int n, double h, double *yout, slope
 		 */
 		/* accuracy OK. increase step size	*/
 		if (max <= RK4_PRECISION) {
-			new_h = RK4_SAFETY * h * pow(fabs(RK4_PRECISION/max), 0.2);
-			if (new_h > RK4_MAXUP * h)
-				new_h = RK4_MAXUP * h;
+			new_h = RK4_SAFETY * (*h) * pow(fabs(RK4_PRECISION/max), 0.2);
+			if (new_h > RK4_MAXUP * (*h))
+				new_h = RK4_MAXUP * (*h);
 		/* inaccuracy error. decrease step size	and compute again */
 		} else {
-			new_h = RK4_SAFETY * h * pow(fabs(RK4_PRECISION/max), 0.25);
-			if (new_h < h / RK4_MAXDOWN)
-				new_h = h / RK4_MAXDOWN;
+			new_h = RK4_SAFETY * (*h) * pow(fabs(RK4_PRECISION/max), 0.25);
+			if (new_h < (*h) / RK4_MAXDOWN)
+				new_h = (*h) / RK4_MAXDOWN;
 		}
 
-	} while (new_h < h);
+	} while (new_h < (*h));
 
 	/* commit ytemp to yout	*/
 	#if (MATHACCEL == MA_INTEL || MATHACCEL == MA_APPLE)
@@ -478,7 +478,10 @@ void matinv(double **inv, double **m, int n, int spd)
 {
 	int *p, lwork;
 	double *work;
-	int i, j, info;
+	int i, j;
+	#if (MATHACCEL != MA_NONE)
+	int info;
+	#endif
 	double *col;
 
 	p = ivector(n);

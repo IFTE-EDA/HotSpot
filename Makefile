@@ -75,11 +75,18 @@ AR			= ar qcv
 RANLIB		= ranlib
 OEXT		= o
 LEXT		= a
-
+GPROFFLAG	= -pg
 # Verbosity level [0-3]
 ifndef VERBOSE
 VERBOSE	= 1
 endif
+
+#BU_3D: Debugging 3D [0-1]
+ifndef DEBUG3D
+DEBUG3D = 0
+endif
+
+
 
 # Numerical ID for each acceleration engine
 ifeq ($(MATHACCEL), none)
@@ -106,7 +113,7 @@ ifdef LIBDIR
 LIBDIRFLAG = -L$(LIBDIR)
 endif
 
-CFLAGS	= $(OFLAGS) $(EXTRAFLAGS) $(INCDIRFLAG) $(LIBDIRFLAG) -DVERBOSE=$(VERBOSE) -DMATHACCEL=$(ACCELNUM) -g
+CFLAGS	= $(OFLAGS)  $(EXTRAFLAGS) $(INCDIRFLAG) $(LIBDIRFLAG) -DVERBOSE=$(VERBOSE) -DMATHACCEL=$(ACCELNUM) -DDEBUG3D=$(DEBUG3D) -g
 
 # sources, objects, headers and inputs
 

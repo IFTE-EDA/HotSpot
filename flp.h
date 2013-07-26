@@ -129,10 +129,10 @@ typedef struct unit_t_st
 	//BU_3D: new parameters for each functional unit. Allows for specific R-C values at a block-level.
 	double specificheat;							
 	double resistivity;
+	int hasRes;
+	int hasSh;
 	//end->BU_3D
-
 }unit_t;
-
 
 /* floorplan data structure	*/
 typedef struct flp_t_st

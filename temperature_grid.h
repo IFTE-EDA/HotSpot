@@ -60,6 +60,13 @@ typedef struct blist_t_st
 	double occupancy;
 	/* next block mapped to the same cell	*/
 	struct blist_t_st *next;
+	//BU_3D: The following variables contain the grid specific conductances
+	int lock, hasRes,hasCap;/*lock: is occupancy >70% lock the thermal resistance values */
+			     	/*hasRes: integer(1 or 0) to see if grid has grid specific resistance */
+				/*hasCap: integer(1 or 0) to see if grid has grid specific Capacitance */
+	double rx,ry,rz;//Thermal Resistance in x,y,z directions
+	double capacitance;//Thermal Capacitance
+	//end->BU_3D
 }blist_t;
 
 /* grid list: grid to block mapping data structure.
@@ -81,31 +88,6 @@ typedef struct glist_t_st
 /* one layer of the grid model. a 3-D chip is a stacked
  * set of layers
  */
-
-//BU_3D: This structure contains the rx,ry,rz values used to calculate psum (current/power) in the macros of temperature_grid.c.
-typedef struct det3D_resistor_values		
-{						
-	double rx;			 
-	double ry;
-	double rz;
-} det3D_resistor_reference;
-//end->BU_3D
-
-//BU_3D: This structure contains the values needed for the detailed 3D model
-//on a per grid basis, instead of the values being uniform across the layer.
-typedef struct det3D_grid_values							
-{										
-	double resistivity; 
-	double specificheat;							
-	double capacitance;					
-							
-	det3D_resistor_reference det3D_resistor_values;
-} det3D_grid_reference;
-//end->BU_3D
-
-
-
-
 typedef struct layer_t_st 
 {
 	/* floorplan */
@@ -130,11 +112,9 @@ typedef struct layer_t_st
 	blist_t ***b2gmap;
 	/* grid-block map - a 1-d array of grid lists	*/
 	glist_t *g2bmap;
-	det3D_grid_reference det3D_grid_values[64][64];	//BU_3D: The grid reference data structure should be the same size as the grid.
-							//right now its 64x64 by default. Would be good to make it variable if the user changes size of grid.
-}layer_t;										
-										
-/* grid model's internal vector datatype	*/	
+}layer_t;
+
+/* grid model's internal vector datatype	*/
 typedef struct grid_model_vector_t_st
 {
 	/* 3-d grid of nodes	*/
@@ -191,10 +171,8 @@ typedef struct grid_model_t_st
 
 //BU_3D: Functions used to retrieve data from the det3D_grid_reference structure
 double find_res_3D(int n, int i, int j, grid_model_t *model,int choice);	//BU_3D: added the integer choice determines whether to return rx ,ry or rz
-double find_cp_3D(int n, int i, int j, grid_model_t *model);	
 double find_cap_3D(int n, int i, int j, grid_model_t *model);	
 //end->BU_3D
-
 /* constructor/destructor	*/
 grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default, int do_detailed_3D);//BU_3D: added do_detailed_3D
 void delete_grid_model(grid_model_t *model);

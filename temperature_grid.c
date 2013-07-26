@@ -16,56 +16,58 @@
 // JOHANN
 #include <sstream>
 
-//BU_3D: We modified R-C computations to return resistance or capacitance for a specified grid cell.
-//If the grid cell does not have a unique value assigned in the flp file, we return the default values for that layer.
-
-
-/* BU_3D: the find_res_3D function will return the rx,ry,rz value of the grid.
-This function is used with the macros later.
-*/
+/*BU_3D: We modified R-C computations to return resistance or capacitance for a specified grid cell.
+ * If the grid cell does not have a unique value assigned in the flp file, we return the default values 
+ * for that layer.the find_res_3D function will return the rx,ry,rz value of the grid.  
+ * This function is used with the macros later.
+ * It will calculate the joint resistance only if there are values defined within the array or rx,ry,rz values. */
 double find_res_3D(int n, int i, int j, grid_model_t *model,int choice)
 {
-	double temp;
-	
+	int hasRes = model->layers[n].b2gmap[i][j]->hasRes;
 	//Returns the rx of the grid cell
 	if(choice==1){
-		temp =  model->layers[n].det3D_grid_values[i][j].det3D_resistor_values.rx;
-		if(temp==0.0)			
-			temp=model->layers[n].rx;
+		if(!hasRes)			
+			return model->layers[n].rx;
+		else
+			return model->layers[n].b2gmap[i][j]->rx;
 	}
 
 	//Returns the ry of the grid cell
-	else if(choice==2){
-		temp =  model->layers[n].det3D_grid_values[i][j].det3D_resistor_values.ry;
-		if(temp==0.0)
-			temp=model->layers[n].ry;
-
+	else if(choice==2){	
+		if(!hasRes)			
+			return model->layers[n].ry;
+		else
+			return model->layers[n].b2gmap[i][j]->ry;
 	}
 	
 	//Returns the rz of the grid cell
-	else if(choice==3){
-		temp =  model->layers[n].det3D_grid_values[i][j].det3D_resistor_values.rz;
-		if(temp==0.0)
-			temp = model->layers[n].rz;
+	else if(choice==3){	
+		if(!hasRes)			
+			return model->layers[n].rz;
+		else
+			return model->layers[n].b2gmap[i][j]->rz;
 	}
 
-	return temp;
+	return 0;
 }//end->BU_3D
 
 
 /* BU_3D: finds capacitance of 3D cell.*/
 double find_cap_3D(int n, int i, int j, grid_model_t *model)
 {
-	double temp;
-	temp = model->layers[n].det3D_grid_values[i][j].capacitance;
-	if(temp == 0.0)
+ 	int hasCp = model->layers[n].b2gmap[i][j]->hasCap;	
+	double	temp = model->layers[n].b2gmap[i][j]->capacitance;
+	if(!hasCp)
 		temp = model->layers[n].c;
 	return temp;
-} //end->BU_3D
-
+} 
+//end->BU_3D
 
 /* constructors	*/
-blist_t *new_blist(int idx, double occupancy)
+/*BU_3D: 
+ * - Assign grid specific resistivty and capacitance if unit occupying the grid have resistivity & capacitance values
+ * - If occupancy is > 70% than lock in the values obtained from the resistivity & capacitance of the occupying unit */
+blist_t *new_blist(int idx, double occupancy, double res, double specificHeat,int first,int do_detailed_3D, double cw, double ch, double thickness)
 {
 	blist_t *ptr = (blist_t *) calloc (1, sizeof(blist_t));
 	if (!ptr)
@@ -73,6 +75,27 @@ blist_t *new_blist(int idx, double occupancy)
 	ptr->idx = idx;
 	ptr->occupancy = occupancy;
 	ptr->next = NULL;
+	/*BU_3D: 
+	 * - If occupancy is greater than 70% lock in thermal resistance values 
+	 * - Else dont lock*/
+	if(first && do_detailed_3D){
+		if(occupancy>=0.7){
+			ptr->lock=TRUE;
+			ptr->rx =  getr(1/res, cw, ch * thickness);	
+			ptr->ry =  getr(1/res, ch, cw * thickness);
+			ptr->rz =  getr(1/res, thickness, cw * ch);
+			ptr->capacitance = getcap(specificHeat, thickness, cw * ch);	
+		}
+		else{
+			ptr->lock=FALSE;
+			ptr->rx =  getr(1/res, cw, ch * thickness);	
+			ptr->ry =  getr(1/res, ch, cw * thickness);
+			ptr->rz =  getr(1/res, thickness, cw * ch);
+			ptr->capacitance = getcap(specificHeat, thickness, cw * ch);	
+		}
+		return ptr;
+	}
+	/*end->BU_3D*/
 	return ptr;
 }
 
@@ -134,8 +157,26 @@ void reset_b2gmap(grid_model_t *model, layer_t *layer)
 }
 
 /* create a linked list node and append it at the end	*/
-void blist_append(blist_t *head, int idx, double occupancy)
+void blist_append(blist_t *head, int idx, double occupancy,double res, double specificHeat,int first, int do_detailed_3D,double cw, double ch, double thickness)
 {
+	/*BU_3D: 
+	 * - If occupancy is greater than 70% lock in thermal resistance values 
+	 * - Add resistances in parallel */
+	if(do_detailed_3D && (head->lock!=TRUE)){
+		if(occupancy>=0.7){
+			head->lock=TRUE;
+			head->rx =  getr(1/res, cw, ch * thickness);	
+			head->ry =  getr(1/res, ch, cw * thickness);
+			head->rz =  getr(1/res, thickness, cw * ch);
+		}
+		else{
+			head->rx = 1/((1/head->rx)+(1/getr(1/res, cw, ch * thickness)));
+			head->ry = 1/((1/head->ry)+(1/getr(1/res, ch, cw * thickness)));
+			head->rz = 1/((1/head->rz)+(1/getr(1/res,thickness, cw * ch)));
+			head->lock=FALSE;
+		}
+	}
+	/*end->BU_3D*/
 	blist_t *tail = NULL;
 	
 	if(!head)
@@ -146,7 +187,7 @@ void blist_append(blist_t *head, int idx, double occupancy)
 		tail = head;
 
 	/* append */
-	tail->next =  new_blist(idx, occupancy);
+	tail->next =  new_blist(idx, occupancy, res, specificHeat, first, do_detailed_3D, cw, ch, thickness);
 }
 
 /* compute the power/temperature average weighted by occupancies	*/
@@ -167,30 +208,6 @@ double blist_avg(blist_t *ptr, flp_t *flp, double *v, int type)
 	return val;		   
 }
 
-void debug_print_blist(blist_t *head, flp_t *flp);
-/* test the block-grid map data structure	*/
-void test_b2gmap(grid_model_t *model, layer_t *layer)
-{
-	int i, j;
-	blist_t *ptr;
-	double sum;
-
-	/* a correctly formed b2gmap should have the 
-	 * sum of occupancies in each linked list
-	 * to be equal to 1.0
-	 */
-	for (i=0; i < model->rows; i++)
-		for(j=0; j < model->cols; j++) {
-			sum = 0.0;
-			for(ptr = layer->b2gmap[i][j]; ptr; ptr = ptr->next)
-				sum += ptr->occupancy;
-			if (!eq(floor(sum*1e5 + 0.5)/1e5, 1.0)) {
-				fprintf(stdout, "i: %d\tj: %d\n", i, j);
-				debug_print_blist(layer->b2gmap[i][j], layer->flp);
-				fatal("erroneous b2gmap data structure. invalid floorplan?\n");
-			}	
-		}
-}
 
 /* setup the block and grid mapping data structures	*/
 void set_bgmap(grid_model_t *model, layer_t *layer)
@@ -201,7 +218,8 @@ void set_bgmap(grid_model_t *model, layer_t *layer)
 	/* shortcuts for cell width(cw) and cell height(ch)	*/
 	double cw = model->width / model->cols;
 	double ch = model->height / model->rows;
-
+	/* shortcut for unit resistivity & specific heat*/ // BU_3D
+	double sh,res;
 	/* initialize	*/
 	reset_b2gmap(model, layer);
 
@@ -229,70 +247,46 @@ void set_bgmap(grid_model_t *model, layer_t *layer)
 		if((i1 >= i2) || (j1 >= j2))
 			fatal("invalid floorplan spec or grid resolution\n");
 
-
 		/* setup g2bmap	*/
 		layer->g2bmap[u].i1 = i1;
 		layer->g2bmap[u].i2 = i2;
 		layer->g2bmap[u].j1 = j1;
 		layer->g2bmap[u].j2 = j2;
 
-		
-
 		/* setup b2gmap	*/
 		/* for each grid cell in this unit	*/
 		for(i=i1; i < i2; i++) {
 			for(j=j1; j < j2; j++) {
 				/* grid cells fully overlapped by this unit	*/
-				//BU_3D:
-				//This assigns the resistance, specific heat, and capacitance
-				//Values for each grid cell at the i,j (x,y) coordinates in the reference
-				//matrix
-				layer->det3D_grid_values[i][j].resistivity = layer->flp->units[u].resistivity;
-				layer->det3D_grid_values[i][j].specificheat = layer->flp->units[u].specificheat;
-				//end->BU_3D
+				
+				/*BU_3D*/
+				// - Load values from floorplan into each grid
 
-				//BU_3D: initialize the values to zero
-				layer->det3D_grid_values[i][j].det3D_resistor_values.rx=0.0;
-				layer->det3D_grid_values[i][j].det3D_resistor_values.ry=0.0;
-				layer->det3D_grid_values[i][j].det3D_resistor_values.rz=0.0;		
-				//end->BU_3D
-
-				//BU_3D
-				/*Calculate the thermal resistances based on the floorplan file.
-				 *If the floorplan file does not have a resistivity value specified then the rx,ry,rz values will be left at 0.0.
-				 *When temperatures are calculated in slope_fn_grid and single_iteration_steady_grid the function find_res_3D
-				 *will check if the specified grid has the rx,ry,rz  has the value of 0.0 to see whether to use
-				 *layer specific resistances or grid specific resistances for calculation.
-				 */ 
-				if (layer->det3D_grid_values[i][j].resistivity != 0.0){			
-					layer->det3D_grid_values[i][j].det3D_resistor_values.rx =  getr(1/layer->det3D_grid_values[i][j].resistivity, cw, ch * layer->thickness);	
-					layer->det3D_grid_values[i][j].det3D_resistor_values.ry =  getr(1/layer->det3D_grid_values[i][j].resistivity, ch, cw * layer->thickness);
-					layer->det3D_grid_values[i][j].det3D_resistor_values.rz =  getr(1/layer->det3D_grid_values[i][j].resistivity, layer->thickness, cw * ch);
-				}
-				if(layer->flp->units[u].specificheat == 0.0)	//This means it was not specified in the floorplan for that unit, so layer defaults are used
-				{
-					layer->det3D_grid_values[i][j].specificheat = layer->sp;
-					layer->det3D_grid_values[i][j].capacitance = getcap(layer->sp, layer->thickness, cw * ch);
-				}
-
-				else	//as specified in floorplan
-					layer->det3D_grid_values[i][j].capacitance = getcap(layer->flp->units[u].specificheat, layer->thickness, cw * ch);	//Calculate capacitance value
-			
-				//end->BU_3D	
-			
+				if(layer->flp->units[u].hasRes && model->config.detailed_3D_used)
+					res = layer->flp->units[u].resistivity;
+				else
+					res = 1/layer->k;
+				if(layer->flp->units[u].hasSh && model->config.detailed_3D_used)
+					sh = layer->flp->units[u].specificheat;
+				else
+					sh = layer->sp;
+				/*end->BU_3D*/
 
 				if ((i > i1) && (i < i2-1) && (j > j1) && (j < j2-1)) {
 					/* first unit in the list	*/
-					if (!layer->b2gmap[i][j])
-						layer->b2gmap[i][j] = new_blist(u, 1.0);
+					if (!layer->b2gmap[i][j]){
+						layer->b2gmap[i][j] = new_blist(u, 1.0,res,sh,1,model->config.detailed_3D_used,cw,ch,layer->thickness);
+						layer->b2gmap[i][j]->hasRes = layer->flp->units[u].hasRes;//BU_3D assign hasRes to the b2gdata structure
+						layer->b2gmap[i][j]->hasCap = layer->flp->units[u].hasSh;//BU_3D assign hasSh to the b2gdata structure
+					}
 					else {
 					/* this should not occur since the grid cell is 
 					 * fully covered and hence, no other unit should 
 					 * be sharing it
 					 */
-						blist_append(layer->b2gmap[i][j], u, 1.0);
+						blist_append(layer->b2gmap[i][j], u, 1.0,res,sh,1,model->config.detailed_3D_used,cw,ch,layer->thickness);
 						// JOHANN: dropped warning since they
-						// always trigger for outline dummy blocks
+						// always occur for outline dummy blocks
 						//warning("overlap of functional blocks?\n");
 					}
 				/* boundary grid cells partially overlapped by this unit	*/
@@ -323,15 +317,19 @@ void set_bgmap(grid_model_t *model, layer_t *layer)
 						fatal("negative overlap!\n");
 
 					/* first unit in the list	*/
-					if (!layer->b2gmap[i][j])
-						layer->b2gmap[i][j] = new_blist(u, occupancy);
+					if (!layer->b2gmap[i][j]){
+						layer->b2gmap[i][j] = new_blist(u, occupancy,res,sh,1,model->config.detailed_3D_used,cw,ch,layer->thickness);
+						layer->b2gmap[i][j]->hasRes = layer->flp->units[u].hasRes;//BU_3D assign hasRes to the b2gdata structure
+						layer->b2gmap[i][j]->hasCap = layer->flp->units[u].hasSh;//BU_3D assign hasSh to the b2gdata structure
+					}
 					else
 					/* append at the end	*/
-						blist_append(layer->b2gmap[i][j], u, occupancy);
+						blist_append(layer->b2gmap[i][j], u, occupancy,res,sh,0,model->config.detailed_3D_used,cw,ch,layer->thickness);
 				}
 			}
 		}
 	}
+
 	/* 
 	 * sanity check	
 	test_b2gmap(model, layer);
@@ -364,7 +362,9 @@ void populate_default_layers(grid_model_t *model, flp_t *flp_default)
 	model->layers[LAYER_INT].flp = flp_default;
 	model->layers[LAYER_INT].b2gmap = model->layers[LAYER_SI].b2gmap;
 	model->layers[LAYER_INT].g2bmap = model->layers[LAYER_SI].g2bmap;
-	
+
+
+
 	if (model->config.model_secondary) {
 		/* metal layer	*/
 		model->layers[DEFAULT_CHIP_LAYERS + LAYER_METAL].no = DEFAULT_CHIP_LAYERS + LAYER_METAL;
@@ -424,6 +424,12 @@ void append_package_layers(grid_model_t *model)
 	model->layers[nl+LAYER_SINK].g2bmap = model->layers[nl-1].g2bmap;
 
 	model->n_layers += DEFAULT_PACK_LAYERS;
+	/* BU_3D: If detailed_3d option is on, the hasRes & hasCap variables must be set false in the b2gmap*/
+	if(model->config.detailed_3D_used){
+		model->layers[nl+LAYER_SP].b2gmap = new_b2gmap(model->rows, model->cols);
+		model->layers[nl+LAYER_SINK].b2gmap = model->layers[nl+LAYER_SP].b2gmap;
+	}
+	/*end->BU_3D*/
 		
 	if (model->config.model_secondary) {
 		/* package substrate	*/
@@ -481,8 +487,8 @@ void parse_layer_file(grid_model_t *model, FILE *fp)
 		ptr = strtok(line, " \r\t\n");
 		if (!ptr || ptr[0] == '#')
 			continue;
-
-	switch (field) 
+			
+		switch (field) 
 		{
 			case LCF_SNO:
 						if (sscanf(ptr, "%d", &ival) != 1)
@@ -578,7 +584,6 @@ void populate_layers_grid(grid_model_t *model, flp_t *flp_default)
 	}
 
 	/* compute the no. of layers	*/
-	
 	if (!model->config.model_secondary) {
 		if (model->has_lcf) {
 			model->n_layers = count_significant_lines(fp);
@@ -629,7 +634,7 @@ void populate_layers_grid(grid_model_t *model, flp_t *flp_default)
 }
 
 /* constructor	*/ 
-grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default, int do_detailed_3D)
+grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default,int do_detailed_3D)
 {
 	int i;
 	grid_model_t *model;
@@ -644,10 +649,8 @@ grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default, int
 	model->config = *config;
 	model->rows = config->grid_rows;
 	model->cols = config->grid_cols;
-	
 	if(do_detailed_3D) //BU_3D: check if heterogenous RC model is on
 		model->config.detailed_3D_used = TRUE; 
-	
 	if(!strcasecmp(model->config.grid_map_mode, GRID_AVG_STR))
 		model->map_mode = GRID_AVG;
 	else if(!strcasecmp(model->config.grid_map_mode, GRID_MIN_STR))
@@ -681,7 +684,9 @@ grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default, int
 	
 	return model;
 }
-
+#if DEBUG3D > 0
+void debug_print_layer_det3D(grid_model_t *model, layer_t *layer);
+#endif 
 void populate_R_model_grid(grid_model_t *model, flp_t *flp)
 {
 	int i;
@@ -697,8 +702,15 @@ void populate_R_model_grid(grid_model_t *model, flp_t *flp)
 
 	/* setup the block-grid maps; flp parameter is ignored */
 	if (model->has_lcf)
-		for(i=0; i < inner_layers; i++)
+		for(i=0; i < inner_layers; i++){
 			set_bgmap(model, &model->layers[i]);
+			//BU_3D Print the thermal resistance of each grid cell in form
+			// 	row,col,rx,ry,rz		output as CSV file
+			#if DEBUG3D > 0
+			debug_print_layer_det3D(model,&model->layers[i]);
+			fprintf(stdout,"\n");
+			#endif
+		}
 	/* only the silicon layer has allocated space for the maps. 
 	 * all the rest just point to it. so it is sufficient to
 	 * setup the block-grid map for the silicon layer alone.
@@ -714,6 +726,26 @@ void populate_R_model_grid(grid_model_t *model, flp_t *flp)
 		model->height = get_total_height(flp);
 		set_bgmap(model, &model->layers[LAYER_SI]);
 	}
+	
+	/* If detailed 3D is used we need to set variables in the b2gmap of the spreader layer*/
+	if(model->config.detailed_3D_used){
+		int ii,jj;
+		int nl = model->n_layers-DEFAULT_PACK_LAYERS;
+		for(ii = 0;ii < model->rows;ii++)
+			for(jj = 0;jj < model->cols; jj++){
+				/*Fill the Blist data structures with values from the layer-1 except we have hasRes & hasCap as false*/
+				double occupancy = model->layers[nl-1].b2gmap[ii][jj]->occupancy;
+				int idx = model->layers[nl-1].b2gmap[ii][jj]->idx;
+				blist_t *next = model->layers[nl-1].b2gmap[ii][jj]->next;
+				model->layers[nl+LAYER_SP].b2gmap[ii][jj] = new_blist(idx,occupancy,0.0,0.0,FALSE,FALSE,0.0,0.0,0.0);
+				model->layers[nl+LAYER_SP].b2gmap[ii][jj]->next = next;
+			}
+
+
+
+	}
+
+
 	/* sanity check on floorplan sizes	*/
 	if (model->width > model->config.s_sink || 
 		model->height > model->config.s_sink || 
@@ -849,7 +881,12 @@ void delete_grid_model(grid_model_t *model)
 		delete_b2gmap(model->layers[LAYER_SI].b2gmap, model->rows, model->cols);
 		free(model->layers[LAYER_SI].g2bmap);
 	}
-	
+	/*BU_3D: If detailed_3d is used then perform delete the b2gmap 
+	 * 	 that was allocated for the package */
+	if(model->config.detailed_3D_used){
+		delete_b2gmap(model->layers[inner_layers].b2gmap, model->rows, model->cols);
+	}//end->BU_3D
+
 	free_grid_model_vector(model->last_steady);
 	free_grid_model_vector(model->last_trans);
 	free(model->layers);
@@ -969,13 +1006,19 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 			fatal(str);
 		}
 
-		for(i=0;  i < model->rows; i++)
-			for(j=0;  j < model->cols; j++)
+		for(i=0;  i < model->rows; i++){
+			for(j=0;  j < model->cols; j++){
 				fprintf(fp, "%d\t%.2f\n", i*model->cols+j, 
-						model->last_steady->cuboid[layer][i][j]);
+						// JOHANN
+						model->last_steady->cuboid[layer][i][j]); 
+			}
+	
+			// JOHANN
+			//fprintf(fp, "\n");
+		}
 			
 		if(fp != stdout && fp != stderr)
-			fclose(fp);
+			fclose(fp);	
 	}
 }
 
@@ -987,12 +1030,13 @@ void dump_steady_temp_grid (grid_model_t *model, char *file)
 }
 
 /* dump temperature vector alloced using 'hotspot_vector' to 'file' */ 
-// JOHANN: added logging for hottest block
 void dump_temp_grid(grid_model_t *model, double *temp, char *file)
 {
 	int i, n, base = 0;
 	char str[STR_SIZE];
 	FILE *fp;
+	// JOHANN
+	// added logging for hottest block
 	double max_temp = 0.0;
 	char hottest_block[STR_SIZE];
 	
@@ -1101,12 +1145,15 @@ void dump_temp_grid(grid_model_t *model, double *temp, char *file)
 		}
 
 		for(i=0; i < model->layers[n].flp->n_units; i++) {
-			fprintf(fp, "%s%s\t%.2f\n", str, model->layers[n].flp->units[i].name, temp[base+i]);
+			fprintf(fp, "%s%s\t%.2f\n", str, 
+					model->layers[n].flp->units[i].name, temp[base+i]);
+			//JOHANN
 			if (temp[base + i] > max_temp) {
-				max_temp = temp[base + i];
-				sprintf(hottest_block,"%s%s", str, model->layers[n].flp->units[i].name);
+			        max_temp = temp[base + i];
+			        sprintf(hottest_block,"%s%s", str, model->layers[n].flp->units[i].name);
 			}
 		}
+
 		base += model->layers[n].flp->n_units;	
 	}
 
@@ -1119,6 +1166,8 @@ void dump_temp_grid(grid_model_t *model, double *temp, char *file)
 			fprintf(fp, "%s\t%.2f\n", str, temp[base+i]);
 		}
 
+	
+	// JOHANN
 	fprintf(fp, "\nhottest block: %s\t%.2f\n", hottest_block, max_temp);
 
 	if(fp != stdout && fp != stderr)
@@ -1717,7 +1766,6 @@ void set_heuristic_temp(grid_model_t *model, grid_model_vector_t *power,
 	/* if all lateral resistances are considered infinity, all peripheral 
 	 * package nodes are at the ambient temperature
 	 */
-
 	temp->extra[SINK_N] = temp->extra[SINK_S] = 
 						  temp->extra[SINK_E] = temp->extra[SINK_W] = 
 						  temp->extra[SINK_C_N] = temp->extra[SINK_C_S] = 
@@ -1754,8 +1802,6 @@ void set_heuristic_temp(grid_model_t *model, grid_model_vector_t *power,
 				
 		/* go from last-1 to first	*/
 		for(n=nl-2; n >= 0; n--) {
-
-
 			//BU_3D
 			/* Check for Heterogenous R-C assignment  and find the weighted mean for rz
 			 * Hotspot in default conditions will use the layer specific rz value which is okay since the whole layer has one rz value.
@@ -1770,20 +1816,21 @@ void set_heuristic_temp(grid_model_t *model, grid_model_vector_t *power,
 					//Next Two Lines are used to get the indicies of the unit
 					i1=model->layers[n].g2bmap[k].i1;//Bottom Left Index of Unit
 					j1=model->layers[n].g2bmap[k].j1;
-					temp_rz=model->layers[n].det3D_grid_values[i1][j1].det3D_resistor_values.rz;//Obtain the rz of the unit
+					//FIXME:SHOULD I USE BOTTOM LEFT INDEX OF UNIT?
+					temp_rz=find_res_3D(n,i1,j1, model,3);//Obtain the rz of the unit
 					w_rz+=warea*temp_rz;// Add the unit's weighted rz to the total weighted rz
 				}
 
 
 			}
-			if(w_rz>0.0)
+			//end->BU_3D
+			if(w_rz>0.0){
 				scaleadd_dvector(temp->cuboid[n][0], temp->cuboid[n+1][0], sum[0], nr*nc,w_rz );
-			else
+			}else
 				/* nth layer temp is n+1th temp + cumul_power * rz of the nth layer	*/
 				scaleadd_dvector(temp->cuboid[n][0], temp->cuboid[n+1][0], sum[0],nr*nc,model->layers[n].rz );
 			/* subtract away the layer's power	*/			
 			scaleadd_dvector(sum[0], sum[0], power->cuboid[n][0], nr*nc, -1.0);
-			
 			//BU_3D: reset the value of w_rz back to zero
 			w_rz=0.0;	
 		} 
@@ -2163,8 +2210,6 @@ double single_iteration_steady_pack(grid_model_t *model, grid_model_vector_t *po
 # define AT_det3D(l,v,n,i,j,nl,nr,nc)		((n > 0) ? (v[n-1][i][j]/find_res_3D(n-1, i, j, model,3)) : 0.0)
 //end->BU_3D
 
-
-
 /* single steady state iteration of grid solver - silicon part */
 double single_iteration_steady_grid(grid_model_t *model, grid_model_vector_t *power,
 									grid_model_vector_t *temp)
@@ -2202,6 +2247,7 @@ double single_iteration_steady_grid(grid_model_t *model, grid_model_vector_t *po
 		c4idx = nl - DEFAULT_PACK_LAYERS - SEC_PACK_LAYERS - SEC_CHIP_LAYERS + LAYER_C4;
 		metalidx = nl - DEFAULT_PACK_LAYERS - SEC_PACK_LAYERS - SEC_CHIP_LAYERS + LAYER_METAL;		
 	}
+
 	/* for each grid cell	*/
 	for(n=0; n < nl; n++) {
 		for(i=0; i < nr; i++) {
@@ -2273,29 +2319,30 @@ double single_iteration_steady_grid(grid_model_t *model, grid_model_vector_t *po
 					/* sum the conductances to cells north, south, 
 				 	* east, west, above and below
 				 	*/
-
-					if(model->config.detailed_3D_used == 0) //BU_3D: This is the default, detailed 3D disabled.
+					//BU_3D: call new macros if detailed_3D model is used & not the spreader/heat sink layers
+					if(model->config.detailed_3D_used == 1 && (n < (nl-DEFAULT_PACK_LAYERS)))
 					{
-					csum = NC(l,n,i,j,nl,nr,nc) + SC(l,n,i,j,nl,nr,nc) + 
-					   EC(l,n,i,j,nl,nr,nc) + WC(l,n,i,j,nl,nr,nc) + 
-					   AC(l,n,i,j,nl,nr,nc) + BC(l,n,i,j,nl,nr,nc);
+						csum = NC_det3D(l,n,i,j,nl,nr,nc) + SC_det3D(l,n,i,j,nl,nr,nc) + 
+						   EC_det3D(l,n,i,j,nl,nr,nc) + WC_det3D(l,n,i,j,nl,nr,nc) + 
+						   AC_det3D(l,n,i,j,nl,nr,nc) + BC_det3D(l,n,i,j,nl,nr,nc);
 
-					/* sum of the weighted temperatures of all the neighbours	*/
-					wsum = NT(l,v,n,i,j,nl,nr,nc) + ST(l,v,n,i,j,nl,nr,nc) + 
-					   ET(l,v,n,i,j,nl,nr,nc) + WT(l,v,n,i,j,nl,nr,nc) + 
-					   AT(l,v,n,i,j,nl,nr,nc) + BT(l,v,n,i,j,nl,nr,nc);
+
+						/* sum of the weighted temperatures of all the neighbours*/	
+						wsum = NT_det3D(l,v,n,i,j,nl,nr,nc) + ST_det3D(l,v,n,i,j,nl,nr,nc) + 
+						   ET_det3D(l,v,n,i,j,nl,nr,nc) + WT_det3D(l,v,n,i,j,nl,nr,nc) + 
+						   AT_det3D(l,v,n,i,j,nl,nr,nc) + BT_det3D(l,v,n,i,j,nl,nr,nc);
 					}
-					else    //BU_3D: - If detailed model is used then call alternate macros
+					//end->BU_3D
+					else    
 					{	
-					csum = NC_det3D(l,n,i,j,nl,nr,nc) + SC_det3D(l,n,i,j,nl,nr,nc) + 
-					   EC_det3D(l,n,i,j,nl,nr,nc) + WC_det3D(l,n,i,j,nl,nr,nc) + 
-					   AC_det3D(l,n,i,j,nl,nr,nc) + BC_det3D(l,n,i,j,nl,nr,nc);
+						csum = NC(l,n,i,j,nl,nr,nc) + SC(l,n,i,j,nl,nr,nc) + 
+						   EC(l,n,i,j,nl,nr,nc) + WC(l,n,i,j,nl,nr,nc) + 
+						   AC(l,n,i,j,nl,nr,nc) + BC(l,n,i,j,nl,nr,nc);
 
-
-					/* sum of the weighted temperatures of all the neighbours*/	
-					wsum = NT_det3D(l,v,n,i,j,nl,nr,nc) + ST_det3D(l,v,n,i,j,nl,nr,nc) + 
-					   ET_det3D(l,v,n,i,j,nl,nr,nc) + WT_det3D(l,v,n,i,j,nl,nr,nc) + 
-					   AT_det3D(l,v,n,i,j,nl,nr,nc) + BT_det3D(l,v,n,i,j,nl,nr,nc);
+						/* sum of the weighted temperatures of all the neighbours	*/
+						wsum = NT(l,v,n,i,j,nl,nr,nc) + ST(l,v,n,i,j,nl,nr,nc) + 
+						   ET(l,v,n,i,j,nl,nr,nc) + WT(l,v,n,i,j,nl,nr,nc) + 
+						   AT(l,v,n,i,j,nl,nr,nc) + BT(l,v,n,i,j,nl,nr,nc);
 					} 
 				} 
 
@@ -2424,6 +2471,7 @@ double single_iteration_steady_grid(grid_model_t *model, grid_model_vector_t *po
 				/* update the current cell's temperature	*/	   
 				prev = v[n][i][j];
 				v[n][i][j] = (power->cuboid[n][i][j] + wsum) / csum;
+				
 				/* compute maximum delta	*/
 				delta =  fabs(prev - v[n][i][j]);
 				if (delta > max)
@@ -2567,11 +2615,9 @@ void recursive_multigrid(grid_model_t *model, grid_model_vector_t *power,
 	#endif
 	grid_model_vector_t *coarse_power, *coarse_temp;
 	int n;
-	int i = 0;
-	int j = 0;
-//BU_3D: We adjust the rz and capacitance in the whole grid, similar to how
+//BU_3D: We adjust the cz and capacitance in the whole grid, similar to how
 //	the layer specific rz and capacitance have been adjusted.  	
-	int k,r,c;
+	int r,c;
 	/* setup heuristic initial temperatures	at the coarsest level*/
 	if (model->rows <= 1 || model->cols <= 1) {
 		set_heuristic_temp(model, power, temp);
@@ -2582,7 +2628,6 @@ void recursive_multigrid(grid_model_t *model, grid_model_vector_t *power,
 		/* make the grid coarser	*/
 		model->rows /= 2;
 		model->cols /= 2;
-
 		for(n=0; n < model->n_layers; n++) {
 			/* only rz's and c's change. rx's and 
 			 * ry's remain the same	
@@ -2590,24 +2635,23 @@ void recursive_multigrid(grid_model_t *model, grid_model_vector_t *power,
 			model->layers[n].rz /= 4;
 			if (model->c_ready)
 				model->layers[n].c *= 4;
-	
 			//BU_3D:  
 			/* We check to see if Heterogenous R-C assignment is on.  Then we adjust each
 			 * grid in each unit in the layer to be used later to compute
-			 * the weighted mean of the rz within set_heuristic_temp.
+			 * the weighted mean of the cz within set_heuristic_temp.
 			 */
 			if(model->config.detailed_3D_used){
 				for(r=0;r<model->config.grid_rows;r++){
 					for(c=0;c<model->config.grid_cols;c++){
-						model->layers[n].det3D_grid_values[r][c].det3D_resistor_values.rz /=4;
-						model->layers[n].det3D_grid_values[r][c].capacitance *=4;
+						//BU_3D: Iterate through the rz array to coarsen the grid
+						model->layers[n].b2gmap[r][c]->rz /=4;
+						model->layers[n].b2gmap[r][c]->capacitance *=4;
 					}
 				}
 			}
 			//end->BU_3D
-
 		}
-		
+
 		/* vectors for the coarse grid	*/
 		coarse_power = new_grid_model_vector(model);
 		coarse_temp = new_grid_model_vector(model);
@@ -2628,29 +2672,31 @@ void recursive_multigrid(grid_model_t *model, grid_model_vector_t *power,
 		/* restore the grid */
 		model->rows *= 2;
 		model->cols *= 2;
-
-		for(n=0; n < model->n_layers; n++){
-
+		for(n=0; n < model->n_layers; n++) {
 			model->layers[n].rz *= 4;
 			if (model->c_ready)
 				model->layers[n].c /= 4;
-			//BU_3D: Since the grid values of rz and capacitance were multiplied by 4 in order to coarsen the grid
-			//	 we have to restore the grid values by divided the rz and capacitance by 4
+			/*BU_3D: 
+			 * Since the grid values of cz and capacitance were multiplied by 4 in order to coarsen the grid
+			 * we have to restore the grid values by divided the cz and capacitance by 4
+			*/
 			if(model->config.detailed_3D_used){
-				for(r=0;r<64;r++){
-					for(c=0;c<64;c++){
-						model->layers[n].det3D_grid_values[r][c].det3D_resistor_values.rz *=4;
-						model->layers[n].det3D_grid_values[r][c].capacitance /=4;
+				for(r=0;r<model->config.grid_rows;r++){
+					for(c=0;c<model->config.grid_cols;c++){
+						//BU_3D: restore the grid by multiplying the cz values by 4
+						model->layers[n].b2gmap[r][c]->rz *=4;
+						model->layers[n].b2gmap[r][c]->capacitance /=4;
 					}
 				}
 			}
 			//end->BU_3D	
 		}
 	}
+	/* refine solution iteratively till convergence	*/
 	do {
-		delta = single_iteration_steady_grid(model, power, temp); 
-		#if VERBOSE > 1								
-			i++;							
+		delta = single_iteration_steady_grid(model, power, temp);
+		#if VERBOSE > 1
+			i++;
 		#endif
 	} while (!eq(delta, 0));
 	#if VERBOSE > 1
@@ -2668,6 +2714,7 @@ void steady_state_temp_grid(grid_model_t *model, double *power, double *temp)
 		fatal("R model not ready\n");
 
 	p = new_grid_model_vector(model);
+
 	/* package nodes' power numbers	*/
 	set_internal_power_grid(model, power);
 	
@@ -2913,7 +2960,7 @@ void slope_fn_pack(grid_model_t *model, double *v, grid_model_vector_t *p, doubl
   	
 		psum = 0.0;
 		for(j=0; j < nc; j++)
-			psum += (A3D(v,subidx,nr-1,j,nl,nr,nc) - x[SOLDER_S]);
+			psum += (A3D(v,subidx,nr-1,j,nl,nr,nc) - x[SUB_S]);
 		psum /= (l[subidx].ry / 2.0 + nc * pk->r_sub1_y);
 		psum += (x[SOLDER_S] - x[SUB_S])/pk->r_solder_per_y;
 		dv[nl*nr*nc + SUB_S] = psum / pk->c_sub_per_y;
@@ -2950,7 +2997,6 @@ void slope_fn_pack(grid_model_t *model, double *v, grid_model_vector_t *p, doubl
 /* current(power) from the next cell above. zero if on top face			*/
 # define AP(l,v,n,i,j,nl,nr,nc)		((n > 0) ? ((A3D(v,n-1,i,j,nl,nr,nc)-A3D(v,n,i,j,nl,nr,nc))/l[n-1].rz) : 0.0)
 
-
 //BU_3D: These are the same macros as above except that they have to check
 //for a resistivity value first since the lc model is not uniform across the layer
 /* current(power) from the next cell north. zero if on northern boundary	*/
@@ -2977,7 +3023,7 @@ void slope_fn_grid(grid_model_t *model, double *v, grid_model_vector_t *p, doubl
 	int n, i, j;
 	/* sum of the currents(power values)	*/
 	double psum;
-
+	
 	/* shortcuts for cell width(cw) and cell height(ch)	*/
 	double cw = model->width / model->cols;
 	double ch = model->height / model->rows;
@@ -3006,7 +3052,8 @@ void slope_fn_grid(grid_model_t *model, double *v, grid_model_vector_t *p, doubl
 		solderidx = nl - SEC_PACK_LAYERS + LAYER_SOLDER;
 		pcbidx = nl - SEC_PACK_LAYERS + LAYER_PCB;		
 	}
-
+	
+	/* for each grid cell	*/
 	for(n=0; n < nl; n++)
 		for(i=0; i < nr; i++)
 			for(j=0; j < nc; j++) {
@@ -3052,20 +3099,18 @@ void slope_fn_grid(grid_model_t *model, double *v, grid_model_vector_t *p, doubl
 					/* sum the currents(power values) to cells north, south, 
 				 	* east, west, above and below
 				 	*/
-					//BU_3D: uses grid specific values for all layers except spreader and heat sink
-
-
-				  if(model->config.detailed_3D_used == 1 && (n < (nl - 1))){//BU_3D: call new macros if detailed_3D model is used.
+					// BU_3D: uses grid specific values for all layers except spreader and heat sink
+					if(model->config.detailed_3D_used == 1 && (n < (nl-DEFAULT_PACK_LAYERS))){//BU_3D: call new macros if detailed_3D model is used.
 						psum = NP_det3D(l,v,n,i,j,nl,nr,nc) + SP_det3D(l,v,n,i,j,nl,nr,nc) + 
-						   EP_det3D(l,v,n,i,j,nl,nr,nc) + WP_det3D(l,v,n,i,j,nl,nr,nc) + 
-						   AP_det3D(l,v,n,i,j,nl,nr,nc) + BP_det3D(l,v,n,i,j,nl,nr,nc);
-					}
-					//BU_3D: use default values for other cells
-				else{
-				  	psum = NP(l,v,n,i,j,nl,nr,nc) + SP(l,v,n,i,j,nl,nr,nc) + 
-					   EP(l,v,n,i,j,nl,nr,nc) + WP(l,v,n,i,j,nl,nr,nc) + 
-					   AP(l,v,n,i,j,nl,nr,nc) + BP(l,v,n,i,j,nl,nr,nc);
-					}//end->BU_3D
+							   EP_det3D(l,v,n,i,j,nl,nr,nc) + WP_det3D(l,v,n,i,j,nl,nr,nc) + 
+							   AP_det3D(l,v,n,i,j,nl,nr,nc) + BP_det3D(l,v,n,i,j,nl,nr,nc);
+					  }
+					// BU_3D: use default values for other cells
+					else{
+						psum = NP(l,v,n,i,j,nl,nr,nc) + SP(l,v,n,i,j,nl,nr,nc) + 
+						   EP(l,v,n,i,j,nl,nr,nc) + WP(l,v,n,i,j,nl,nr,nc) + 
+						   AP(l,v,n,i,j,nl,nr,nc) + BP(l,v,n,i,j,nl,nr,nc);
+						}//end->BU_3D
 				}
 
 				/* spreader core is connected to its periphery	*/
@@ -3143,15 +3188,13 @@ void slope_fn_grid(grid_model_t *model, double *v, grid_model_vector_t *p, doubl
 				}
 
 				/* update the current cell's temperature	*/	   
-				if(model->config.detailed_3D_used == 1 && (n < (nl - 1)))//BU_3D: use find_cap_3D is detailed_3D model is used.
+				if(model->config.detailed_3D_used == 1 && (n < (nl - DEFAULT_PACK_LAYERS)))//BU_3D: use find_cap_3D is detailed_3D model is used.
 					A3D(dv,n,i,j,nl,nr,nc) = (p->cuboid[n][i][j] + psum) / find_cap_3D(n, i, j, model);
 				else
 					A3D(dv,n,i,j,nl,nr,nc) = (p->cuboid[n][i][j] + psum) / l[n].c;
 			}
-
 	/* for each grid cell	*/
 	slope_fn_pack(model, v, p, dv);
-//	fclose (test);
 }
 
 void compute_temp_grid(grid_model_t *model, double *power, double *temp, double time_elapsed)
@@ -3186,36 +3229,29 @@ void compute_temp_grid(grid_model_t *model, double *power, double *temp, double 
 	if (temp != NULL) {
 		xlate_vector_b2g(model, temp, model->last_trans, V_TEMP);
 		model->last_temp = temp;
-	}	
+	}
 
 	/* Obtain temp at time (t+time_elapsed). 
 	 * Instead of getting the temperature at t+time_elapsed directly, we
 	 * do it in multiple steps with the correct step size at each time 
 	 * provided by rk4. 
 	 */
-	for (t = 0, new_h = MIN_STEP; t + new_h <= time_elapsed; t+=h) {
+	for (t = 0, new_h = MIN_STEP; t < time_elapsed && new_h >= MIN_STEP*DELTA; t+=h) {
 		h = new_h;
 		/* pass the entire grid and the tail of package nodes 
 		 * as a 1-d array
 		 */
 		new_h = rk4(model, model->last_trans->cuboid[0][0],  p, 
 				 /* array size = grid size + EXTRA	*/
-				 model->rows * model->cols * model->n_layers + extra_nodes, h,
+				 model->rows * model->cols * model->n_layers + extra_nodes, &h,
 				 model->last_trans->cuboid[0][0], 
 				 /* the slope function callback is typecast accordingly */
 				 (slope_fn_ptr) slope_fn_grid);
+		new_h = MIN(new_h, time_elapsed-t-h);
 		#if VERBOSE > 1
 			i++;
 		#endif	
 	}
-
-	/* remainder	*/
-	if (time_elapsed > t)
-		rk4(model, model->last_trans->cuboid[0][0],  p, 
-			model->rows * model->cols * model->n_layers + extra_nodes,
-			/* the slope function callback is typecast accordingly */
-			time_elapsed - t, model->last_trans->cuboid[0][0], 
-			(slope_fn_ptr) slope_fn_grid);
 
 	#if VERBOSE > 1
 	fprintf(stdout, "no. of rk4 calls during compute_temp: %d\n", i+1);
@@ -3246,6 +3282,17 @@ void debug_print_glist(glist_t *array, flp_t *flp)
 		fprintf(stdout, "unit: %s\tstartx: %d\tendx: %d\tstarty: %d\tendy: %d\n",
 				flp->units[i].name, array[i].j1, array[i].j2, array[i].i1, array[i].i2);
 }
+/*BU_3D: Debugging Functions */
+void debug_print_layer_det3D(grid_model_t *model, layer_t *layer)
+{
+	int i, j;
+	for(i=0; i < model->rows; i++)
+		for(j=0; j < model->cols; j++) {
+			fprintf(stdout, "%d,%d,%lf,%lf,%lf\n", i, j,layer->b2gmap[i][j]->rx,layer->b2gmap[i][j]->ry,layer->b2gmap[i][j]->rz);//row,col,rx,ry,rz
+		}
+
+}
+/*end->BU_3D*/
 
 void debug_print_layer(grid_model_t *model, layer_t *layer)
 {
@@ -3269,6 +3316,30 @@ void debug_print_layer(grid_model_t *model, layer_t *layer)
 
 	fprintf(stdout, "printing g2bmap information...\n");
 	debug_print_glist(layer->g2bmap, layer->flp);
+}
+
+/* test the block-grid map data structure	*/
+void test_b2gmap(grid_model_t *model, layer_t *layer)
+{
+	int i, j;
+	blist_t *ptr;
+	double sum;
+
+	/* a correctly formed b2gmap should have the 
+	 * sum of occupancies in each linked list
+	 * to be equal to 1.0
+	 */
+	for (i=0; i < model->rows; i++)
+		for(j=0; j < model->cols; j++) {
+			sum = 0.0;
+			for(ptr = layer->b2gmap[i][j]; ptr; ptr = ptr->next)
+				sum += ptr->occupancy;
+			if (!eq(floor(sum*1e5 + 0.5)/1e5, 1.0)) {
+				fprintf(stdout, "i: %d\tj: %d\n", i, j);
+				debug_print_blist(layer->b2gmap[i][j], layer->flp);
+				fatal("erroneous b2gmap data structure. invalid floorplan?\n");
+			}	
+		}
 }
 
 void debug_print_grid_model_vector(grid_model_t *model, grid_model_vector_t *v, int nl, int nr, int nc)
@@ -3331,3 +3402,4 @@ void debug_print_grid(grid_model_t *model)
 
 	fprintf(stdout, "base_n_units: %d\n", model->base_n_units);
 }
+

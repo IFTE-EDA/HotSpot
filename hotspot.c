@@ -151,7 +151,6 @@ int global_config_to_strs(global_config_t *config, str_pair *table, int max_entr
 	sprintf(table[3].name, "c");
 	sprintf(table[4].name, "d");
 	sprintf(table[5].name, "detailed_3D");	//BU_3D: detailed_3D option in global config
-	
 	sprintf(table[0].value, "%s", config->flp_file);
 	sprintf(table[1].value, "%s", config->p_infile);
 	sprintf(table[2].value, "%s", config->t_outfile);
@@ -287,7 +286,7 @@ void free_names(char **m)
  */
 int main(int argc, char **argv)
 {
-	int i, j, k, idx, base = 0, count = 0, n = 0;
+	int i, j, idx, base = 0, count = 0, n = 0;
 	int num, size, lines = 0, do_transient = TRUE;
 	char **names;
 	double *vals;
@@ -316,10 +315,8 @@ int main(int argc, char **argv)
 	int natural_convergence = 0;
 	double r_convec_old;
 
-	/* variable for heterogenous R-C model */
+	/*BU_3D: variable for heterogenous R-C model */
 	int do_detailed_3D = FALSE; //BU_3D: do_detailed_3D, false by default
-
-	
 	if (!(argc >= 5 && argc % 2)) {
 		usage(argc, argv);
 		return 1;
@@ -375,10 +372,10 @@ int main(int argc, char **argv)
 	 * file in the grid model when the latter is specified.
 	 */
 	flp = read_flp(global_config.flp_file, FALSE);
-	
+
+//BU_3D: added do_detailed_3D to alloc_RC_model. Detailed 3D modeling can only be used with grid-level modeling.
 	/* allocate and initialize the RC model	*/
-	//BU_3D: added do_detailed_3D to alloc_RC_model. Detailed 3D modeling can only be used with grid-level modeling.
-	model = alloc_RC_model(&thermal_config, flp, do_detailed_3D); 
+	model = alloc_RC_model(&thermal_config, flp,do_detailed_3D); 
 	if (model->type == BLOCK_MODEL && do_detailed_3D) 
                 fatal("Detailed 3D option can only be used with grid model\n"); //end->BU_3D
 
@@ -435,10 +432,10 @@ int main(int argc, char **argv)
 	/* header line of temperature trace	*/
 	if (do_transient)
 		write_names(tout, names, n);
-	
+
 	/* read the instantaneous power trace	*/
 	vals = dvector(MAX_UNITS);
-	while ((num=read_vals(pin, vals)) != 0) { 
+	while ((num=read_vals(pin, vals)) != 0) {
 		if(num != n)
 			fatal("invalid trace file format\n");
 
@@ -457,6 +454,7 @@ int main(int argc, char **argv)
 				}	
 				base += model->grid->layers[i].flp->n_units;	
 			}
+
 		/* compute temperature	*/
 		if (do_transient) {
 			/* if natural convection is considered, update transient convection resistance first */
@@ -494,7 +492,8 @@ int main(int argc, char **argv)
 		
 			/* output instantaneous temperature trace	*/
 			write_vals(tout, vals, n);
-		}
+		}		
+	
 		/* for computing average	*/
 		if (model->type == BLOCK_MODEL)
 			for(i=0; i < n; i++)
@@ -509,8 +508,10 @@ int main(int argc, char **argv)
 
 		lines++;
 	}
+
 	if(!lines)
 		fatal("no power numbers in trace file\n");
+		
 	/* for computing average	*/
 	if (model->type == BLOCK_MODEL)
 		for(i=0; i < n; i++) {
@@ -525,9 +526,9 @@ int main(int argc, char **argv)
 					overall_power[base+j] /= lines;
 					total_power += overall_power[base+j];
 				}
-			base += model->grid->layers[i].flp->n_units;
-
+			base += model->grid->layers[i].flp->n_units;	
 		}
+		
 	/* natural convection r_convec iteration, for steady-state only */ 		
 	natural_convergence = 0;
 	if (natural) { /* natural convection is used */
@@ -543,14 +544,16 @@ int main(int argc, char **argv)
 			if (fabs(model->config->r_convec-r_convec_old)<NATURAL_CONVEC_TOL) 
 				natural_convergence = 1;
 		}
-	} /* natural convection is not used, no need for iterations */
-	
-	/* steady state temperature	*/											
-	steady_state_temp(model, overall_power, steady_temp);				
-	
-	/* print steady state results	*/									
+	}	else /* natural convection is not used, no need for iterations */
+	/* steady state temperature	*/
+	steady_state_temp(model, overall_power, steady_temp);
+
+	/* print steady state results	*/
+	//BU_3D: Only print steady state results to stdout when DEBUG3D flag is not set
+	#if DEBUG3D < 1
 	fprintf(stdout, "Unit\tSteady(Kelvin)\n");
 	dump_temp(model, steady_temp, "stdout");
+	#endif
 
 	/* dump steady state temperatures on to file if needed	*/
 	if (strcmp(model->config->steady_file, NULLFILE))
@@ -562,7 +565,7 @@ int main(int argc, char **argv)
 	if (model->type == GRID_MODEL &&
 		strcmp(model->config->grid_steady_file, NULLFILE))
 		dump_steady_temp_grid(model->grid, model->config->grid_steady_file);
-	
+
 	#if VERBOSE > 2
 	if (model->type == BLOCK_MODEL) {
 		if (do_transient) {

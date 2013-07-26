@@ -101,7 +101,7 @@ thermal_config_t default_thermal_config(void)
 	 */
 	strcpy(config.grid_map_mode, GRID_CENTER_STR);
 
-	config.detailed_3D_used = 0; //BU_3D: by default detailed 3D modeling is disabled.	
+	config.detailed_3D_used = 0;	//BU_3D: by default detailed 3D modeling is disabled.	
 	return config;
 }
 
@@ -382,7 +382,7 @@ int thermal_config_to_strs(thermal_config_t *config, str_pair *table, int max_en
 	sprintf(table[26].value, "%lg", config->t_sub);
 	sprintf(table[27].value, "%lg", config->s_solder);
 	sprintf(table[28].value, "%lg", config->t_solder);
-	sprintf(table[29].value, "%s", config->s_pcb);
+	sprintf(table[29].value, "%lg", config->s_pcb);
 	sprintf(table[30].value, "%lg", config->t_pcb);
 	sprintf(table[31].value, "%lg", config->ambient);
 	sprintf(table[32].value, "%s", config->init_file);
@@ -565,7 +565,7 @@ void debug_print_package_RC(package_RC_t *p)
  * can be an empty floorplan frame with only the names of the functional 
  * units. for the grid model, it is the default floorplan
  */
-RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder, int do_detailed_3D) //BU_3D: do_detailed_3D option added.
+RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder,int do_detailed_3D) //BU_3D: do_detailed_3D option added.
 {
 	RC_model_t *model= (RC_model_t *) calloc (1, sizeof(RC_model_t));
 	if (!model)
@@ -576,7 +576,7 @@ RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder, int do_
 		model->config = &model->block->config;
 	} else if(!(strcasecmp(config->model_type, GRID_MODEL_STR))) {
 		model->type = GRID_MODEL;
-		model->grid = alloc_grid_model(config, placeholder, do_detailed_3D); //BU_3D: do_detailed_3D option added to grid model.
+		model->grid = alloc_grid_model(config, placeholder,do_detailed_3D); //BU_3D: do_detailed_3D option added to grid model.
 		model->config = &model->grid->config;
 	} else 
 		fatal("unknown model type\n");
@@ -702,9 +702,7 @@ void steady_state_temp(RC_model_t *model, double *power, double *temp)
 			if (!leak_convg_true)
 				fatal("too many iterations before temperature-leakage convergence -- possible thermal runaway\n");			
 		} else // if leakage-temperature loop is not considered
-		{
 			steady_state_temp_grid(model->grid, power, temp);
-		}
 	}
 	else fatal("unknown model type\n");	
 }

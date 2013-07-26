@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 	 */
 	flp = flp_placeholder(flp_desc);
 	/* temperature model	*/
-	model = alloc_RC_model(&thermal_config, flp,0); //BU_3D: Added 0 for the detailed_3D option here (alloc_RC_model now takes a third parameter). 
+	model = alloc_RC_model(&thermal_config, flp,0); //BU_3D: Added for detailed_3D option here (alloc_RC_model now takes a third parameter and fourth parameter). 
 	/* input power vector	*/
 	power = hotspot_vector(model);
 	read_power(model, power, global_config.power_in);

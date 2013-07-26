@@ -470,21 +470,16 @@ void compute_temp_block(block_model_t *model, double *power, double *temp, doubl
 	 * in multiple steps with the correct step size at each time 
 	 * provided by rk4
 	 */
-	for (t = 0, new_h = MIN_STEP; t + new_h <= time_elapsed; t+=h) {
+	for (t = 0, new_h = MIN_STEP; t < time_elapsed && new_h >= MIN_STEP*DELTA; t+=h) {
 		h = new_h;
-		new_h = rk4(model, temp, model->t_vector, model->n_nodes, h, 
+		new_h = rk4(model, temp, model->t_vector, model->n_nodes, &h, 
 		/* the slope function callback is typecast accordingly */
 					temp, (slope_fn_ptr) slope_fn_block);
+		new_h = MIN(new_h, time_elapsed-t-h);
 		#if VERBOSE > 1
 		i++;
 		#endif
 	}
-	/* remainder	*/
-	if (time_elapsed > t)
-		rk4(model, temp, model->t_vector, model->n_nodes, time_elapsed - t, 
-		/* the slope function callback is typecast accordingly */
-			temp, (slope_fn_ptr) slope_fn_block);
-
 	#if VERBOSE > 1
 	fprintf(stdout, "no. of rk4 calls during compute_temp: %d\n", i+1);
 	#endif

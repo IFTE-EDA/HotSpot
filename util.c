@@ -14,7 +14,7 @@
 
 int eq(double x, double y)
 {
-	return (fabs(x-y) < DELTA);
+	return (fabs(x-y) <  DELTA);
 }
 
 int le(double x, double y)

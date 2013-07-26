@@ -565,6 +565,7 @@ flp_t *flp_create_grid(flp_t *flp, int ***map)
 			
 	}
 
+
 	/* sanity check	*/
 	if(count != (xsize-1) * (ysize-1))
 		fatal("mismatch in the no. of units\n");
@@ -1033,8 +1034,8 @@ int flp_count_units(FILE *fp)
 		Detailed 3D modeling allows 6 numerical parameters, 2 for block-level resistivity and specific heat values.
 		Would be good to add a check to make sure not more than 6 parameters are allowed.*/
 		if (sscanf(str2, "%s%lf%lf%lf%lf%lf%lf", name, &leftx, &bottomy,		
-		  		   &width, &height, &cp, &res) > 4) //end->BU_3D								
-			count++;														
+		  		   &width, &height, &cp, &res) > 4) //end->BU_3D					
+			count++;
 	}
 	return count;
 }
@@ -1070,6 +1071,7 @@ void flp_populate_blks(flp_t *flp, FILE *fp)
 	double wire_density;
 	double cp, res; //BU_3D: placeholders for resistivity and specific heat values 
 	char *ptr;
+
 	fseek(fp, 0, SEEK_SET);
 	while(!feof(fp)) {		/* second pass	*/
 		fgets(str, LINE_SIZE, fp);
@@ -1081,39 +1083,40 @@ void flp_populate_blks(flp_t *flp, FILE *fp)
 		ptr = strtok(str, " \r\t\n");
 		if (!ptr || ptr[0] == '#')
 			continue;
-    cp = res = 0.0;
-	if (sscanf(copy, "%s%lf%lf%lf%lf%lf%lf", name1, &width, &height, 
-				   &leftx, &bottomy, &cp, &res) == 5) {				 
-			strcpy(flp->units[i].name, name1);					
-			flp->units[i].width = width;				
-			flp->units[i].height = height;
-			flp->units[i].leftx = leftx;
-			flp->units[i].bottomy = bottomy;
-
-			/*BU_3D: If sscanf pulls only five values, it means the
-			resistivity and specific heat were not specified, so we set these to 0.*/
-			flp->units[i].specificheat = 0.0; 
-			flp->units[i].resistivity = 0.0; //end->BU_3D
-
-			i++;
-	}
-	else
-	{
-			strcpy(flp->units[i].name, name1);
-			flp->units[i].width = width;
-			flp->units[i].height = height;
-			flp->units[i].leftx = leftx;
-			flp->units[i].bottomy = bottomy;
-			//BU_3D: Else, resistivity and specific heat values are enterered in flp file by user
-			flp->units[i].specificheat = cp;
-			flp->units[i].resistivity = res; 
-			//end->BU_3D
-
-			i++; 
-	
-			/* skip connectivity info	*/
-		} //if (sscanf(copy, "%s%s%lf", name1, name2, &wire_density) != 3) 
-		//	fatal("invalid floorplan file format\n");
+		cp = res = 0.0;
+		/* BU_3D: This option checks if there are 7 arguments.*/
+		if (sscanf(copy, "%s%lf%lf%lf%lf%lf%lf", name1, &width, &height,
+					   &leftx, &bottomy, &cp, &res) == 7)
+		{
+				strcpy(flp->units[i].name, name1);
+				flp->units[i].width = width;
+				flp->units[i].height = height;
+				flp->units[i].leftx = leftx;
+				flp->units[i].bottomy = bottomy;
+				flp->units[i].specificheat = cp;
+				flp->units[i].resistivity = res;
+				flp->units[i].hasRes = TRUE;
+				flp->units[i].hasSh = TRUE;
+				i++; 
+		} 
+		/* Default Option */
+		else if(sscanf(copy, "%s%lf%lf%lf%lf%lf%lf", name1, &width, &height,
+					   &leftx, &bottomy, &cp, &res) == 5)
+		{
+				strcpy(flp->units[i].name, name1);
+				flp->units[i].width = width;
+				flp->units[i].height = height;
+				flp->units[i].leftx = leftx;
+				flp->units[i].bottomy = bottomy;
+				flp->units[i].specificheat = 0.0;//BU_3D - Else resistance and specific heat where specified so they
+				flp->units[i].resistivity = 0.0;
+				flp->units[i].hasRes = FALSE;
+				flp->units[i].hasSh = FALSE;
+				i++; 
+		}
+		/* skip connectivity info	*/
+		else if(sscanf(copy, "%s%s%lf", name1, name2, &wire_density) != 3)
+			fatal("invalid floorplan file format\n"); 
 	}
 	if (i != flp->n_units)
 	  fatal("mismatch of number of units\n");
@@ -1392,6 +1395,7 @@ int get_blk_index(flp_t *flp, char *name)
 			return i;
 		}
 	}
+
 	sprintf(msg, "block %s not found\n", name);
 	fatal(msg);
 	return -1;
@@ -1653,4 +1657,3 @@ double get_manhattan_dist(flp_t *flp, int i, int j)
 	double y2 = flp->units[j].bottomy + flp->units[j].height / 2.0;
 	return (fabs(x2-x1) + fabs(y2-y1));
 }
-

@@ -354,7 +354,7 @@ typedef struct RC_model_t_st
 
 /* constructor/destructor	*/
 /* placeholder is an empty floorplan frame with only the names of the functional units	*/
-RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder, int do_detailed_3D); //BU_3D: added do_detailed_3D
+RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder,int do_detailed_3D); //BU_3D: added do_detailed_3D
 void delete_RC_model(RC_model_t *model);
 
 /* initialization	*/
@@ -398,7 +398,7 @@ double getcap(double sp_heat, double thickness, double area);
 void lusolve(double **a, int n, int *p, double *b, double *x, int spd);
 
 /* 4th order Runge Kutta solver with adaptive step sizing */
-double rk4(void *model, double *y, void *p, int n, double h, double *yout, slope_fn_ptr f);
+double rk4(void *model, double *y, void *p, int n, double *h, double *yout, slope_fn_ptr f);
 
 /* matrix and vector routines	*/
 void matmult(double **c, double **a, double **b, int n);
