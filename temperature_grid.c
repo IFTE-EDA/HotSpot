@@ -121,16 +121,17 @@ void delete_b2gmap(blist_t ***b2gmap, int rows, int cols)
 	int i, j;
 	blist_t *ptr, *temp;
 
-	/* free the linked list	*/
-	for(i=0; i < rows; i++)
-		for(j=0; j < cols; j++) {
-			ptr = b2gmap[i][j];
-			while(ptr) {
-				temp = ptr->next;
-				free(ptr);
-				ptr = temp;
-			}
-		}
+	// JOHANN: dropped due to double free or corruption
+//	/* free the linked list	*/
+//	for(i=0; i < rows; i++)
+//		for(j=0; j < cols; j++) {
+//			ptr = b2gmap[i][j];
+//			while(ptr) {
+//				temp = ptr->next;
+//				free(ptr);
+//				ptr = temp;
+//			}
+//		}
 
 	/* free the array space	*/
 	free(b2gmap[0]);
