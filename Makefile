@@ -14,6 +14,8 @@ LIBDIR		=
 LIBS		= -lm
 EXTRAFLAGS	= 
 
+#DEBUG		= 1
+
 # Intel Machines - acceleration with the Intel
 # Math Kernel Library (MKL)
 #MATHACCEL	= intel
@@ -78,7 +80,7 @@ LEXT		= a
 GPROFFLAG	= -pg
 # Verbosity level [0-3]
 ifndef VERBOSE
-VERBOSE	= 1
+VERBOSE	= 2
 endif
 
 #BU_3D: Debugging 3D [0-1]

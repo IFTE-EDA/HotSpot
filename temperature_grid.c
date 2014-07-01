@@ -2700,8 +2700,9 @@ void recursive_multigrid(grid_model_t *model, grid_model_vector_t *power,
 			i++;
 		#endif
 	} while (!eq(delta, 0));
+
 	#if VERBOSE > 1
-	fprintf(stdout, "no. of iterations for steady state convergence (%d x %d grid): %d\n", 
+	fprintf(stderr, "no. of iterations for steady state convergence (%d x %d grid): %d\n", 
 					model->rows, model->cols, i);
 	#endif
 }
