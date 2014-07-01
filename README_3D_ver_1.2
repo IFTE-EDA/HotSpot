@@ -1,0 +1,149 @@
+
+- By Ayse Coskun, Katsutoshi Kawakami, and Daniel Rossell at Boston University.
+- Contact: acoskun@bu.edu, kkawakam@bu.edu
+- Acknowledgements: David Atienza at EPFL, Mohamed Sabry at EPFL, Yusuf
+  Leblebici at EPFL, and Tajana Rosing at UCSD.
+
+- Current release: July 2012 (extension version 1.2, built on HotSpot v.5.02)
+
+All changes to the code are commented with "BU_3D" (grep'ing BU_3D should list
+all changes).  Multiple-line changes are marked with BU_3D and end->BU_3D.
+
+"FIXME"s demonstrate the ongoing work. 
+
+Changes with respect to extension version 1.1:
+----------------------------------------------
+- Include changes made in HotSpot 5.01 & 5.02 into this HotSpot Extension.
+
+- Removed det3D_grid_reference and placed the data fields into blist_t b2gmap.
+  It was redundant to have two different data structures that created a 3D array
+  of size [# of layers][# of Rows][# of Columns].
+  HotSpot has a function to allocate and free blist_t b2gmap based on the 
+  grid size specified in the configuration file. 
+
+- Method for Dealing with Boundary Cells between blocks with different resistivity values.
+  	- HotSpot calculates the percentage of area(occupancy) covered a unit that 
+	  partially overlap boundary grid cells.
+	- If we observe an occupancy of >70% from a unit we "lock" the grid-specific
+	  thermal resistance values calculated from that unit. Otherwise we add 
+	  thermal resistances in parallel for boundary grid cells.
+	- These values are stored in the head node of the b2gmap[row][col] linked list
+	-[FIXME]:Should we weigh the themal resistances by their occupancies when we add
+		 the resistances in parallel?
+
+On-going work:
+---------------------------
+- [FIXME]: We will add check statements to prevent errors when user enters
+  unreasonable values for specific heat and resistivity or a meaningless # of numerical
+parameters.
+
+- [FIXME]: liquid cooling interface
+
+*************************************************************************************
+*************************************************************************************
+
+How to use our Scripts:
+-------------------------------
+- 3Dfig.pl which has similar functionality to tofig.pl but instead reads in 
+  an .lcf files and creates a .FIG file for each floorplan listed in the .lcf file.
+  Additionally, it will show a unit's resistivity and capacitance if it specified
+  in the floorplan file.
+
+-usage: 3Dfig.pl [-a <area ratio>] [-f <fontsize>] [-s <nskip>] <file>
+converts the floorplan file into 'FIG' format and prints to stdout
+[-a <area ratio>] -- approx page occupancy by figure (default 0.95)
+[-f <fontsize>]   -- font size to be used (default 10)
+[-s <nskip>]      -- no. of entries to be skipped in input (default 0)
+<file>            -- input .lcf file (eg: example.lcf)
+
+- Alternatively, the command to convert 'example.lcf' into a PDF is
+3Dfig.pl example.lcf | 3Dfig2pdf.sh output.pdf
+How to Specify lcf and flp files:
+
+
+Layer Configuration File & Floorplan File Format:
+------------------------------------------------
+- The .lcf file format is the same as the default HotSpot 5.0
+	#File Format:
+	<Layer Number>
+	<Lateral heat flow Y/N?>
+	<Power Dissipation Y/N?>
+	<Specific heat capacity in J/(m^3K)>
+	<Resistivity in (m-K)/W>
+	<Thickness in m>
+	<floorplan file>
+
+	#Example
+	0	
+	Y
+	Y
+	1.75e6
+	0.01
+	0.00015
+	ev6.flp.orig
+
+- There is a slight change in the format of the floorplan file (.flp) that allow units in
+the floorplan to have different specific heat and resistivity
+
+# Line Format: <unit-name>\t<width>\t<height>\t<left-x>\t<bottom-y>\t<specific-heat>\t<resistivity>
+# all dimensions are in meters, comment lines begin with a '#',
+# comments and empty lines are ignored
+# Example
+Unit1	0.002000	0.002000	0.000000	0.000000	4e6	.02294
+
+- Use the 3Dfig.pl and 3Dfig2pdf.sh to verify your floorplans.
+
+How to Run :
+-----------
+>> ./hotspot -c hotspot.config -f <filename> -p <powerfile> -steady_file <steadyfile> -model_type grid -detailed_3D on -grid_layer_file <lcffile> 
+>> ./hotspot -c hotspot.config -init_file <steadyfile> -f <filename> -p <powerfile> -o <ttracefile> -model_type grid -detailed_3D on -grid_layer_file <lcffile>
+
+
+
+
+Included Test Cases :
+---------------------
+**Detailed Explanation of all the test cases are located in TESTCASES_README.pdf**
+
+The included test cases consist of TIM layers where a block in the flp has a
+number of TSVs. We first compute the resistivity for the block with TSVs. In
+order to find the resistivity based on TSV density, we calculate the joint
+parallel resistivity (of Cu and TIM) in the following way:
+( ((% area of block w.o. TSVs) * (1/TIM Resistivity)) + ((% area of TSVs) * (1/Cu Resistivity)) )^-1
+
+Test files are in the following folders:
+default3D: No TSVs
+3D_2percent: TSV density of 2 percent of the block area
+3D_2percent_v2: TSV density of 2 percent of the block area in TIM layer and the bulk Si Layer(Layer 0)
+3D_10percent: TSV density of 10 percent 
+3D_heterogeneous: One TIM layer contains two units, one with an adjusted resistivity & the other
+			with the default layer resistivity.
+
+TSV density can be computed based on number of TSVs, TSV dimensions, and pitch
+constraints between TSVs for a given 3D system. 
+
+Note that it is also possible to have blocks with and without TSVs in the same
+layer (see 3D_heterogeneous) or to model each TSV directly. The user should
+specify each TSV in the floorplan and provide the Cu resistivity and capacity
+values for modeling individual TSVs.
+
+Depending on the design, TSVs may connect the active layers of each Si layer;
+therefore some of the Si layers may have TSVs in the bulk Si.  
+It is possible to model such cases using this tool. See 3D_2percent_v2 as an example.
+
+We do not modify the capacity of the layer in these experiments. The change
+in specific heat capacity is expected to have lower impact compared to that
+of the thermal resistivity. Capacity values, however, can also be modified in
+this tool if needed.
+
+
+
+
+Debugging :
+-----------
+We added a debugging flag to print out the thermal resistances in the x, y and z direction for each grid in a .csv type format. This will disable the dumping of steady state temperatures to stdout.
+	Usage:
+		make DEBUG3D=1
+When running HotSpot it output the relevant data starting from layer zero to the last layer specified in the layer configuration file.
+	Output:
+		row #,column #,Rx,Ry,Rz

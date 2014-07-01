@@ -1,0 +1,10 @@
+
+# Line Format: <unit-name>\t<width>\t<height>\t<left-x>\t<bottom-y>\t<specific-heat>\t<resistivity>
+# all dimensions are in meters
+# comment lines begin with a '#' 
+# comments and empty lines are ignored
+
+# TSVs are contained in half of the chip. For Unit2, the tool reads in the default r-c values.
+
+Unit1	0.001000	0.002000	0.000000	0.000000	4e6	.02294
+Unit2 	0.001000	0.002000	0.001000	0.000000	

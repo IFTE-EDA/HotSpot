@@ -1,0 +1,7 @@
+
+# Line Format: <unit-name>\t<width>\t<height>\t<left-x>\t<bottom-y>
+# all dimensions are in meters
+# comment lines begin with a '#' 
+# comments and empty lines are ignored
+
+layer2	0.002000	0.002000	0.000000	0.000000
