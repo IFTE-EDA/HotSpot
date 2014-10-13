@@ -47,7 +47,7 @@ sub usage () {
 	my $stroke_coeff=10**-7;	#used to tune the stroke-width
 	my $stroke_opacity=0;		#used to control the opacity of the floor plan
 	my $smallest_shown=10000;	#fraction of the entire chip necessary to see macro
-	my $zoom=10**6;
+	my $zoom=3*10**6;
 	my $in_minx=0; my $in_miny=0; my $in_maxx=0; my $in_maxy=0; 
 	my $txt_offset=100;
 	my $x_bound;
