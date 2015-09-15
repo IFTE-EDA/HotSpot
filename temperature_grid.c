@@ -240,26 +240,36 @@ void set_bgmap(grid_model_t *model, layer_t *layer)
 		j1 = tolerant_floor(lu/cw);
 		/* right index = ceil (rightx / cell width)	*/
 		j2 = tolerant_ceil(ru/cw);
-		/* sanity check	*/
-		if((i1 < 0) || (j1 < 0)) {
-			// JOHANN extended dbg output
-			fprintf(stderr, "unit: %s\n", layer->flp->units[u].name);
-			fprintf(stderr, "i1: %d\n", i1);
-			fprintf(stderr, "j1: %d\n", j1);
-			fprintf(stderr, "bu: %f\n", bu);
-			fprintf(stderr, "tu: %f\n", tu);
-			fprintf(stderr, "lu: %f\n", lu);
-			fprintf(stderr, "ru: %f\n", ru);
-			fprintf(stderr, "ch: %f\n", ch);
-			fprintf(stderr, "cw: %f\n", cw);
-			fprintf(stderr, "tu/ch: %f\n", tu/ch);
-			fprintf(stderr, "lu/cw: %f\n", lu/cw);
-			fprintf(stderr, "tolerant_ceil(tu/ch): %d\n", tolerant_ceil(tu/ch));
-			fprintf(stderr, "tolerant_floor(lu/cw): %d\n", tolerant_floor(lu/cw));
-			fatal("negative grid cell start index!\n");
-		}
-		if((i2 > model->rows) || (j2 > model->cols))
-			fatal("grid cell end index out of bounds!\n");
+
+		i1 = MAX(i1, 0);
+		j1 = MAX(j1, 0);
+		i2 = MIN(i2, model->rows);
+		j2 = MIN(j2, model->cols);
+
+		// JOHANN dropped sanity check for block-grid matching, may occur easily
+		// for softblocks w/ floating point coordinates; simply avoid such
+		// problems by considering grid constraints, see above
+//		/* sanity check	*/
+//		if((i1 < 0) || (j1 < 0)) {
+//			// JOHANN extended dbg output
+//			fprintf(stderr, "unit: %s\n", layer->flp->units[u].name);
+//			fprintf(stderr, "i1: %d\n", i1);
+//			fprintf(stderr, "j1: %d\n", j1);
+//			fprintf(stderr, "bu: %f\n", bu);
+//			fprintf(stderr, "tu: %f\n", tu);
+//			fprintf(stderr, "lu: %f\n", lu);
+//			fprintf(stderr, "ru: %f\n", ru);
+//			fprintf(stderr, "ch: %f\n", ch);
+//			fprintf(stderr, "cw: %f\n", cw);
+//			fprintf(stderr, "tu/ch: %f\n", tu/ch);
+//			fprintf(stderr, "lu/cw: %f\n", lu/cw);
+//			fprintf(stderr, "tolerant_ceil(tu/ch): %d\n", tolerant_ceil(tu/ch));
+//			fprintf(stderr, "tolerant_floor(lu/cw): %d\n", tolerant_floor(lu/cw));
+//			fatal("negative grid cell start index!\n");
+//		}
+//		if((i2 > model->rows) || (j2 > model->cols))
+//			fatal("grid cell end index out of bounds!\n");
+//
 		if((i1 >= i2) || (j1 >= j2))
 			fatal("invalid floorplan spec or grid resolution\n");
 
