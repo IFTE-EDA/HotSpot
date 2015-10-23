@@ -1032,15 +1032,20 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 			fatal(str);
 		}
 
+		// JOHANN
+		//
+		// output x and y grid bins separately; to enable easier handling in gnuplot
+		//
+		// i is rows, i.e., y for gnuplot; j is cols, i.e., x for gnuplot; rows
+		// are to be inverted, i.e., the uppermost in HotSpot has to be the
+		// lowermost for gnuplot
+		//
 		for(i=0;  i < model->rows; i++){
 			for(j=0;  j < model->cols; j++){
-				fprintf(fp, "%d\t%.2f\n", i*model->cols+j, 
-						// JOHANN
-						model->last_steady->cuboid[layer][i][j]); 
+				fprintf(fp, "%d\t%d\t%.2f\n", j, i, 
+						model->last_steady->cuboid[layer][model->rows - i - 1][j]); 
 			}
-	
-			// JOHANN
-			//fprintf(fp, "\n");
+			fprintf(fp, "\n");
 		}
 			
 		if(fp != stdout && fp != stderr)
