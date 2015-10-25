@@ -1011,7 +1011,8 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 		fatal("R model not ready\n");
 
 	// JOHANN
-	// dump grids of all layers separately
+	// dump grids of all layers separately; for Corblivar and plotting of thermal
+	// results using gnuplot
 	for (layer = 0; layer < model->n_layers; layer++) {
 
 		if (!strcasecmp(file, "stdout"))
@@ -1022,7 +1023,7 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 			// JOHANN
 			// separate files for layers
 			std::stringstream layer_file;
-			layer_file << file << ".layer_" << layer;
+			layer_file << file << ".gp_data.layer_" << layer;
 
 			fp = fopen (layer_file.str().c_str(), "w");
 		}
@@ -1043,9 +1044,46 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 		for(i=0;  i < model->rows; i++){
 			for(j=0;  j < model->cols; j++){
 				fprintf(fp, "%d\t%d\t%.2f\n", j, i, 
-						model->last_steady->cuboid[layer][model->rows - i - 1][j]); 
+					model->last_steady->cuboid[layer][model->rows - i - 1][j]); 
 			}
 			fprintf(fp, "\n");
+		}
+			
+		if(fp != stdout && fp != stderr)
+			fclose(fp);	
+	}
+
+	// JOHANN
+	// dump grids of all layers separately; for Corblivar and Octave scripts to
+	// parameterize thermal masks
+	for (layer = 0; layer < model->n_layers; layer++) {
+
+		if (!strcasecmp(file, "stdout"))
+			fp = stdout;
+		else if (!strcasecmp(file, "stderr"))
+			fp = stderr;
+		else {
+			// JOHANN
+			// separate files for layers
+			std::stringstream layer_file;
+			layer_file << file << ".layer_" << layer;
+
+			fp = fopen (layer_file.str().c_str(), "w");
+		}
+
+		if (!fp) {
+			sprintf (str,"error: %s could not be opened for writing\n", file);
+			fatal(str);
+		}
+
+		// dump in continuous list; this particular format of HotSpot is parsed
+		// accordingly in the Octave scripts
+		//
+		for(i=0;  i < model->rows; i++){
+			for(j=0;  j < model->cols; j++){
+				fprintf(fp, "%d\t%.2f\n", i*model->cols+j, 
+					model->last_steady->cuboid[layer][i][j]); 
+			}
 		}
 			
 		if(fp != stdout && fp != stderr)
