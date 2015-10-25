@@ -1046,8 +1046,28 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file,
 				fprintf(fp, "%d\t%d\t%.2f\n", j, i, 
 					model->last_steady->cuboid[layer][model->rows - i - 1][j]); 
 			}
+
+			// add dummy data point, required since gnuplot option
+			// corners2color cuts last row and column of dataset; derive value
+			// from previous data point
+			fprintf(fp, "%d\t%d\t%.2f\n", j, i, 
+				model->last_steady->cuboid[layer][model->rows - i - 1][j - 1]); 
+
+			// blank line marks new row for gnuplot
 			fprintf(fp, "\n");
 		}
+
+		// add dummy data row, required since gnuplot option corners2color cuts
+		// last row and column of dataset; derive value from previous data point
+		for(j=0;  j < model->cols; j++){
+			fprintf(fp, "%d\t%d\t%.2f\n", j, model->rows, 
+				model->last_steady->cuboid[layer][model->rows - 1][j]);
+		}
+		// add (final) dummy data point, required since gnuplot option
+		// corners2color cuts last row and column of dataset; derive value from
+		// previous data point
+		fprintf(fp, "%d\t%d\t%.2f\n", model->cols, model->rows,
+			model->last_steady->cuboid[layer][model->rows - 1][model->rows - 1]); 
 			
 		if(fp != stdout && fp != stderr)
 			fclose(fp);	
