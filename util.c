@@ -534,3 +534,63 @@ int count_significant_lines(FILE *fp)
 	return count;
 }
 
+/* Ke's code: Coo2CSC */
+struct coo_elem
+{
+  int x;
+  int y;
+  double val;
+};
+
+int c2c_cmp( const void *a , const void *b ) 
+{  
+  struct coo_elem *c = (struct coo_elem *)a;
+  struct coo_elem *d = (struct coo_elem *)b;
+  if(c->y != d->y) return c->y - d->y;
+  else return c->x - d->x;
+}  
+
+int coo2csc(int size, int nnz, 
+            int *cooX, int *cooY, double *cooV,  // input COO array
+            int *cscRowInd, int *cscColPtr, double *cscV) //output CSC array
+{
+  int i, j;
+  int prev_x, prev_y;
+  // Init struct array
+  struct coo_elem *cooArray;
+  cooArray = (struct coo_elem *) calloc (nnz, sizeof(struct coo_elem));
+
+  // Copy in
+  for (i =0; i <nnz; i++) {
+      cooArray[i].x = cooX[i];
+      cooArray[i].y = cooY[i];
+      cooArray[i].val = cooV[i];
+  }
+
+  // Sort in col major 
+  qsort(cooArray, nnz, sizeof(cooArray[0]), c2c_cmp);
+
+  // Copy out, check duplicate
+  j = -1;
+  prev_x = -1;
+  prev_y = -1;
+  for (i =0; i <nnz; i++) {
+      cscRowInd[i]=cooArray[i].x;
+      cscV[i]=cooArray[i].val;
+      while(j<cooArray[i].y){
+          j++;
+          cscColPtr[j]=i;
+      }
+      if((cooArray[i].x == prev_x) &&
+         (cooArray[i].y == prev_y))
+        printf("Warning: Duplicate elements in Matrix!\n");
+
+      prev_x = cooArray[i].x;
+      prev_y = cooArray[i].y;
+  }  
+  cscColPtr[j+1]=i;  
+
+  free(cooArray);
+
+  return 1;
+}

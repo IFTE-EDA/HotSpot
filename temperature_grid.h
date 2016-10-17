@@ -10,10 +10,15 @@
  */
 #include "temperature.h"
 
+#if SUPERLU > 0
+/* Lib for SuperLU */
+#include "slu_ddefs.h"
+#endif
+
 /* layer configuration file constants */
-#define LCF_NPARAMS			7	/* no. of parameters per layer	*/
+#define LCF_NPARAMS		7	/* no. of parameters per layer	*/
 #define LCF_SNO				0	/* serial number	*/
-#define LCF_LATERAL			1	/* has lateral heat flow?	*/
+#define LCF_LATERAL		1	/* has lateral heat flow?	*/
 #define LCF_POWER			2	/* dissipates power?	*/
 #define LCF_SP				3	/* specific heat capacity	*/
 #define LCF_RHO				4	/* resistivity	*/
@@ -28,45 +33,49 @@
  * and sink). used when LCF file is not specified
  */
 #define DEFAULT_CHIP_LAYERS	2
-#define LAYER_SI			0
-#define LAYER_INT			1
+#define LAYER_SI			      0
+#define LAYER_INT			      1
 
 /* layers of secondary path with same area as die */
 #define SEC_CHIP_LAYERS	2
-#define LAYER_METAL 0
-#define LAYER_C4	1
+#define LAYER_C4	      0
+#define LAYER_METAL     1
 
 /* default no. of package layers	*/
 #define DEFAULT_PACK_LAYERS	2
-#define LAYER_SP			0
-#define LAYER_SINK			1
+#define LAYER_SP			      0
+#define LAYER_SINK			    1
 
 /* additional package layers from secondary path */
 #define SEC_PACK_LAYERS	3
-#define LAYER_SUB	0
-#define LAYER_SOLDER	1
-#define LAYER_PCB	2
+#define LAYER_PCB	      0
+#define LAYER_SOLDER	  1
+#define LAYER_SUB	      2
+
+/* Occupancy threshold for border-cell calculation.
+   Effective only when the detailed 3D modeling is turned on. */
+#define OCCUPANCY_THRESHOLD 0.95
 
 /* block list: block to grid mapping data structure.
  * list of blocks mapped to a grid cell	
  */
 typedef struct blist_t_st
 {
-	/* index of the mapped block	*/
-	int idx;
-	/* ratio of this block's area within the grid cell 
-	 * to the total area of the grid cell
-	 */
-	double occupancy;
-	/* next block mapped to the same cell	*/
-	struct blist_t_st *next;
-	//BU_3D: The following variables contain the grid specific conductances
-	int lock, hasRes,hasCap;/*lock: is occupancy >70% lock the thermal resistance values */
-			     	/*hasRes: integer(1 or 0) to see if grid has grid specific resistance */
-				/*hasCap: integer(1 or 0) to see if grid has grid specific Capacitance */
-	double rx,ry,rz;//Thermal Resistance in x,y,z directions
-	double capacitance;//Thermal Capacitance
-	//end->BU_3D
+  /* index of the mapped block	*/
+  int idx;
+  /* ratio of this block's area within the grid cell 
+   * to the total area of the grid cell
+   */
+  double occupancy;
+  /* next block mapped to the same cell	*/
+  struct blist_t_st *next;
+  //BU_3D: The following variables contain the grid specific conductances
+  int lock, hasRes,hasCap;/*lock: is occupancy >OCCUPANCY_THRESHOLD% lock the thermal resistance values */
+  /*hasRes: integer(1 or 0) to see if grid has grid specific resistance */
+  /*hasCap: integer(1 or 0) to see if grid has grid specific Capacitance */
+  double rx,ry,rz;//Thermal Resistance in x,y,z directions
+  double capacitance;//Thermal Capacitance
+  //end->BU_3D
 }blist_t;
 
 /* grid list: grid to block mapping data structure.
@@ -75,14 +84,14 @@ typedef struct blist_t_st
  */
 typedef struct glist_t_st
 {
-	/* start index in the y direction	*/
-	int i1;
-	/* end index in the y direction + 1	*/
-	int i2;
-	/* start index in the x direction	*/
-	int j1;
-	/* end index in the x direction + 1	*/
-	int j2;
+  /* start index in the y direction	*/
+  int i1;
+  /* end index in the y direction + 1	*/
+  int i2;
+  /* start index in the x direction	*/
+  int j1;
+  /* end index in the x direction + 1	*/
+  int j2;
 } glist_t;
 
 /* one layer of the grid model. a 3-D chip is a stacked
@@ -90,91 +99,88 @@ typedef struct glist_t_st
  */
 typedef struct layer_t_st 
 {
-	/* floorplan */
-	flp_t *flp;
+  /* floorplan */
+  flp_t *flp;
 
-	/* configuration parameters	*/
-	int no;				/* serial number	*/
-	int has_lateral;	/* model lateral spreading of heat?	*/
-	int has_power;		/* dissipates power?	*/
-	double k;			/* 1/resistivity	*/
-	double k1;	/* thermal conductivity of the other material in some layers, such as C4/underfill */
-	double thickness;
-	double sp;			/* specific heat capacity	*/
-	double sp1; /* specific heat of the other material in some layers, such as C4/underfill */
+  /* configuration parameters	*/
+  int no;				/* serial number	*/
+  int has_lateral;	/* model lateral spreading of heat?	*/
+  int has_power;		/* dissipates power?	*/
+  double k;			/* 1/resistivity	*/
+  double thickness;
+  double sp;			/* specific heat capacity	*/
 
-	/* extracted information	*/
-	double rx, ry, rz;	/* x, y and z resistors	*/
-	double rx1, ry1, rz1; /* resistors of the other material in some layers, e.g. c4/underfill*/
-	double c, c1;			/* capacitance	*/
+  /* extracted information	*/
+  double rx, ry, rz;	/* x, y and z resistors	*/
+  double c;			      /* capacitance	*/
 
-	/* block-grid map - 2-d array of block lists	*/
-	blist_t ***b2gmap;
-	/* grid-block map - a 1-d array of grid lists	*/
-	glist_t *g2bmap;
+  /* block-grid map - 2-d array of block lists	*/
+  blist_t ***b2gmap;
+  /* grid-block map - a 1-d array of grid lists	*/
+  glist_t *g2bmap;
 }layer_t;
 
 /* grid model's internal vector datatype	*/
 typedef struct grid_model_vector_t_st
 {
-	/* 3-d grid of nodes	*/
-	double ***cuboid;
-	/* extra spreader and sink  nodes	*/
-	double *extra;
+  /* 3-d grid of nodes	*/
+  double ***cuboid;
+  /* extra spreader and sink  nodes	*/
+  double *extra;
 }grid_model_vector_t;
 
 /* grid thermal model	*/
 typedef struct grid_model_t_st
 {
-	/* configuration	*/
-	thermal_config_t config;
+  /* configuration	*/
+  thermal_config_t config;
 
-	/* layer information	*/
-	layer_t *layers;
-	int n_layers;
+  /* layer information	*/
+  layer_t *layers;
+  int n_layers;
 
-	/* grid resolution	*/
-	int rows;
-	int cols;
-	/* dimensions	*/
-	double width;
-	double height;
+  /* grid resolution	*/
+  int rows;
+  int cols;
+  /* dimensions	*/
+  double width;
+  double height;
 
-	/* package parameters	*/
-	package_RC_t pack;
+  /* package parameters	*/
+  package_RC_t pack;
 
-	/* sum total of the functional blocks of all floorplans	*/
-	int total_n_blocks;
-	/* grid-to-block mapping mode	*/
-	int map_mode;
+  /* sum total of the functional blocks of all floorplans	*/
+  int total_n_blocks;
+  /* grid-to-block mapping mode	*/
+  int map_mode;
 
-	/* flags	*/
-	int r_ready;	/* are the R's initialized?	*/
-	int c_ready;	/* are the C's initialized?	*/
-	int has_lcf;	/* LCF file specified?		*/
+  /* flags	*/
+  int r_ready;	/* are the R's initialized?	*/
+  int c_ready;	/* are the C's initialized?	*/
+  int has_lcf;	/* LCF file specified?		*/
 
-	/* internal state - most recently computed 
-	 * steady state temperatures
-	 */
-	grid_model_vector_t *last_steady;
-	/* internal state - most recently computed 
-	 * transient temperatures
-	 */
-	/* grid cell temperatures	*/
-	grid_model_vector_t *last_trans;
-	/* block temperatures	*/
-	double *last_temp;
+  /* internal state - most recently computed 
+   * steady state temperatures
+   */
+  grid_model_vector_t *last_steady;
+  /* internal state - most recently computed 
+   * transient temperatures
+   */
+  /* grid cell temperatures	*/
+  grid_model_vector_t *last_trans;
+  /* block temperatures	*/
+  double *last_temp;
 
-	/* to allow for resizing	*/
-	int base_n_units;
+  /* to allow for resizing	*/
+  int base_n_units;
 }grid_model_t;
 
 //BU_3D: Functions used to retrieve data from the det3D_grid_reference structure
-double find_res_3D(int n, int i, int j, grid_model_t *model,int choice);	//BU_3D: added the integer choice determines whether to return rx ,ry or rz
+double find_res_3D(int n, int i, int j, grid_model_t *model, int choice);
 double find_cap_3D(int n, int i, int j, grid_model_t *model);	
-//end->BU_3D
-/* constructor/destructor	*/
-grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default, int do_detailed_3D);//BU_3D: added do_detailed_3D
+/* constructor/destructor */
+grid_model_t *alloc_grid_model(thermal_config_t *config, flp_t *flp_default, 
+                               int do_detailed_3D);//BU_3D: added do_detailed_3D
 void delete_grid_model(grid_model_t *model);
 
 /* initialization	*/
@@ -192,7 +198,7 @@ double *hotspot_vector_grid(grid_model_t *model);
  * compaction
  */
 void trim_hotspot_vector_grid(grid_model_t *model, double *dst, double *src, 
-						 	  int at, int size);
+                              int at, int size);
 /* update the model's node count	*/						 
 void resize_thermal_model_grid(grid_model_t *model, int n_units);
 void set_temp_grid (grid_model_t *model, double *temp, double val);
@@ -218,5 +224,12 @@ void xlate_vector_b2g(grid_model_t *model, double *b, grid_model_vector_t *g, in
 void xlate_temp_g2b(grid_model_t *model, double *b, grid_model_vector_t *g);
 /* debug print	*/
 void debug_print_grid(grid_model_t *model);
+
+#if SUPERLU > 0
+/* steady-state solver */
+void direct_SLU(grid_model_t *model, grid_model_vector_t *power, grid_model_vector_t *temp);
+SuperMatrix build_steady_grid_matrix(grid_model_t *model);
+SuperMatrix build_steady_rhs_vector(grid_model_t *model, grid_model_vector_t *power, double **rhs);
+#endif
 
 #endif

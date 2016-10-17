@@ -4,98 +4,59 @@ CONTENTS
     B) Quick usage guide for the tools
         1) Base case - the block level thermal model
         2) The grid model
-				3) The MS Excel interface
-        4) The HotFloorplan floorplanner
-        5) The package model
-        6) The secondary heat transfer path
-        7) The leakage mode 
+        3) The HotFloorplan floorplanner
+        4) The package model
+        5) The secondary heat transfer path
+        6) The leakage mode 
     C) More detailed guidelines
         1) The block model - aspect ratio
         2) The grid model - 3-D stacking capability
-        3) Source-level integration with a power/performance simulator
-        4) HotFloorplan
+        3) Model layers with heterogeneous materials
+        4) Speedup steady-state simulations with SuperLU
+        5) Source-level integration with a power/performance simulator
+        6) HotFloorplan
     D) Conclusion    
 
 INSTALLATION
 ------------
-1. Download the HotSpot tar ball (HotSpot-5.0.tar.gz) following the
+1. Download the HotSpot tar ball (HotSpot-6.0.tar.gz) following the
 instructions at http://lava.cs.virginia.edu/HotSpot
 
 2. Unzip and untar the file using the following commands
-    a) gunzip HotSpot-5.0.tar.gz
-    b) tar -xvf HotSpot-5.0.tar
+    a) gunzip HotSpot-6.0.tar.gz
+    b) tar -xvf HotSpot-6.0.tar
 
 3. Go to the HotSpot installation directory
-    a) cd HotSpot-5.0/
+    a) cd HotSpot-6.0/
     
 4. For Linux/UNIX systems with BLAS/LAPACK libraries installed, 
 uncomment the lines corresponding to your installation of the
-BLAS/LAPACK vendor libraries (see
-http://www.netlib.org/blas/faq.html#5) and set the path and compiler
-options corresponding to your library. This version of HotSpot has
-code integrated for Intel Math Kernel Library, AMD Core Math Library,
-Apple Velocity Engine and Sun Performance Library. Extending it to
-other vendors should be straightforward. For such an extension, apart
-from the user guide from those vendors,
+BLAS/LAPACK vendor libraries (see http://www.netlib.org/blas/faq.html#5) 
+and set the path and compiler options corresponding to your library. 
+This version of HotSpot has code integrated for Intel Math Kernel Library, 
+AMD Core Math Library, Apple Velocity Engine and Sun Performance Library.
+Extending it to other vendors should be straightforward. For such an extension,
+apart from the user guide from those vendors,
 http://www.netlib.org/blas/blast-forum/cinterface.pdf might also be
 useful as it provides useful description of the C interface to BLAS.
 
 5. Build HotSpot
 	a) Under Linux/UNIX systems with GNU Make and GCC, type the 
 	following for compilation:
-    1) make
-	b) Under Windows system with VC++ compiler, do the following:
-	(VC++ may have some compatibility issues. In that case, try c).)
-		1) Set up the VC++ paths. Under the command prompt, run 
-		the "vcvars32.bat" file under the VC++ bin folder (e.g., 
-		"C:\Program Files\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat")
-		2) Type "nmake /F Makefile.VC" to compile HotSpot
-	c) Another way to build HotSpot under Windows, if b) has 
-	compatibility issues, is to use MinGW:
-  		1)	Download MinGW, which is a collection of freely available and 
-  		freely distributable Windows specific header files and import 
-  		libraries combined with GNU toolsets. To download, go to http://
-  		www.mingw.org/download.shtml and click the download link to install
-  		"Automated MinGW Installer", remember to check the box for 
-  		"MinGW Make" during installation. 
-		2)	Start Visual C++ (I am using VC++ 9.0 Express Edition).
-			a.	Create a new VC++ Makefile Project: File > new project > 
-			General > Makefile project > choose path and enter project name 
-			(mine is "hotspot") > "next".
-			b.	Configure makefile command lines: enter "mingw32-make" in 
-			"Build command line"; "mingw32-make clean" in "Clean commands"; 
-			"mingw32-make all" in "Rebuild command line"; "hotspot.exe" in 
-			"output". > "next" > "next" > "finish".
-			c.	Set up default executable search path in VC++: Tools > Options
-			 > Projects and Soultions > VC++ directories. In the "Show 
-			 directories for:" pull-down menu, choose "Executable files" and 
-			 add the following path (assuming you installed MinGW in the root 
-			 directory) "C:\WinGW\bin" > "OK".
-			d.	Copy all files in the hotspot package to the VC++ Makefile 
-			project folder you created in Step 4(a-b), in my case, it is 
-			".\hotspot\hotspot".
-			e.	Add files to the HotSpot VC++ project: In the Solution window, 
-			expand the "hotspot" project, right click "Header Files" and add 
-			all HotSpot header files, and right click "Source Files" and add 
-			all HotSpot c source files.
-			f.	Remove all pre-compiled object files: Build > Clean solution. 
-			(When you compile it for the first time, there are no object files, 
-			so ignore the error message in that case.)
-			g.	Create executable: Build > Build Solution (Ignore the error 
-			message about cannot find libhotspot.a, it is not related to this 
-			Windows compilation.)
+    > make
   	
-6. To remove all the outputs of compilation, type 'make clean' or 
-'nmake /F Makefile.VC clean' depending on whether it is a GCC/GNU Make 
-system or a VC++/NMake system. Similarly, to remove the object files 
-alone, type 'make cleano' or 'nmake /F Makefile.VC cleano'. To view 
-the list of files HotSpot needs for proper working, type 
-'make filelist' or 'nmake /F Makefile.VC filelist'. To compile for 
-debugging, use 'make DEBUG=1' or 'nmake /F Makefile.VC DEBUG=1'. 
-Under a Linux/UNIX system, to compile for using with a profiler 
-(e.g. gprof), use 'make DEBUG=2'.
+    b) To remove all the outputs of compilation, type 'make clean'.
+    Similarly, to remove the object files alone, type 'make cleano'.
+    To view the list of files HotSpot needs for proper working, type 
+    'make filelist'. To compile for debugging, use 'make DEBUG=1'. 
+    Under a Linux/UNIX system, to compile for using with a profiler 
+    (e.g. gprof), use 'make DEBUG=2'.
 
-7. Known compatibility issues:
+    c) In principle, HotSpot could be build on any major platform 
+    since it is implemented in standard C. For detailed installation
+    instructions for other platforms, please contact the authors.
+
+6. Known compatibility issues:
     a) For old AMD machines without SSE2 instructions, the most recent
     version of ACML available is 3.1.0. On such machines, the ACML
     library works with GCC 4.0 but not with GCC 4.1.
@@ -197,31 +158,7 @@ or average temperature of the grid cells in it. The 'center' option
 means that the block's temperature is given by the temperature of the
 grid cell at its center.
 
-3. The MS Excel interface:
-
-HotSpot provides an MS Excel 2003 interface to the block and grid 
-thermal models through the "hotspotUI.xls" file. Its detailed usage 
-instructions can be found in the "Usage" sheet of the Excel file.
-The prerequisite to use the Excel file is to compile HotSpot under
-the Windows/VC++ environment as mentioned above in the Installation
-section. Once the floorplan information, input power trace numbers
-and configuration parameters are provided in the Excel file through 
-the "FLOORPLAN", "PTRACE" and "CONFIG" sheets respectively, the user
-can use the buttons on the "FLOORPLAN" sheet to run HotSpot. The 
-"FLOORPLAN" sheet also contains buttons for drawing the floorplan 
-and plotting the block-level thermal map (a single temperature per 
-block - as computed by the grid model or the block model). The 
-Excel file would then prompt for the number of iterations to run.
-A single iteration means that the transient temperatures are computed
-using default constant initial temperature values. Two iterations 
-mean that the steady-state temperatures are computed during the first
-run and are used as the initial temperatures for the second iteration,
-as mentioned in the previous section. Hence, the default number of 
-iterations is two. A higher number of iterations does not currently 
-have any impact and could in the future be used to model the 
-leakage-thermal feedback loop.
-
-4. The HotFloorplan Floorplanner:
+3. The HotFloorplan Floorplanner:
 
 HotSpot comes with a thermal-aware floorplanning tool that can be
 easily configured to optimize for an arbitrary objective function. It
@@ -249,7 +186,7 @@ it into the FIG format. Alternatively, the command to convert this
 'output.flp' into PDF using fig2dev and ps2pdf is:
 b) tofig.pl output.flp  | fig2dev -L ps | ps2pdf - output.pdf
 
-5. The package model:
+4. The package model:
 
 HotSpot integrates a simple model for heatsink, air flow and fan. This
 can assist cooling package design and exploration of the impact of 
@@ -265,7 +202,7 @@ package model is given by:
 a) hotspot -c hotspot.config -f ev6.flp -p gcc.ptrace \
 					 -package_model_used 1
 
-6. The secondary heat transfer path:
+5. The secondary heat transfer path:
 
 HotSpot also models the secondary heat transfer path from the silicon 
 to on-chip interconnect layers, C4 pads, packaging substrate, solder 
@@ -279,7 +216,7 @@ the secondary path:
 a) hotspot -c hotspot.config -f ev6.flp -p gcc.ptrace \
 					 -model_secondary 1 -model_type grid
 					 
-7. The leakage mode:
+6. The leakage mode:
 
 HotSpot also provides a simple interface for leakage model. Modeling 
 leakage is sometimes critical since it is exponentially dependent on 
@@ -292,8 +229,6 @@ are not clear, and it is potentially wrong to assume instantaneous
 leakage update with increased temperature in each transient step 
 ('sampling interval') in HotSpot. To enable the leakage calculations:
 a) hotspot -c hotspot.config -f ev6.flp -p gcc.ptrace -leakage_used 1 
-
-
 
 MORE DETAILED GUIDELINES
 ------------------------
@@ -365,12 +300,70 @@ message printed while running HotSpot. It is now worth taking a moment
 to look at the power trace file 'example.ptrace' and comparing it with
 'gcc.ptrace.orig'. 
 
-The modeling of a 3-D chip's thermal vias is not explicitly supported
-in HotSpot. But the users can get around it by manually changing (in
-the source code) the thermal conductivity of the grid cells at which
-the thermal vias are located to the desired values.
+3. Model layers with heterogeneous materials
 
-3. Source-level integration with a power/performance simulator:
+The modeling of a 2-D chip's C4 pad array or a 3-D chip's thermal vias 
+requires support for heterogeneous materials within one layer.
+Thanks to Prof. Ayse Coskun's research team in Boston University,
+this feature is now supported by HotSpot (starting from version 6.0).
+
+To enable this new feature in simulation, cmd line option 'detailed_3D' 
+should be set to 'on'. Currently, heterogeneous layers could only be modeled 
+in grid-mode with .lcf file specified. There is a slight change in the format 
+of the floorplan file (.flp) that allows units in the floorplan to have different 
+heat capacitance and resistivity (see the example below). Note that specific-heat 
+and resistivity are optional. Leaving them blank will force HotSpot to use layers'
+default RC values (specified in .lcf file) for that block. 
+
+#Format: <unit-name> <width> <height> <left-x> <bottom-y> [<specific-heat>] [<resistivity>]
+Unit1	0.002000	0.002000	0.000000	0.000000	4e6	.02294
+
+How to Run :
+-----------
+Get steady-state temperature map:
+>> ./hotspot -c hotspot.config -f <filename> -p <powerfile> -steady_file <steadyfile> \
+			 -model_type grid -detailed_3D on -grid_layer_file <lcffile> 
+
+Transient simulation with steady-state results as initial temperature:
+>> ./hotspot -c hotspot.config -init_file <steadyfile> -f <filename> -p <powerfile> \
+			 -o <ttracefile> -model_type grid -detailed_3D on -grid_layer_file <lcffile>
+
+Notice that since .lcf is provided, the .flp file specified by -f option will be overridden.
+
+Also, you can find a more detailed example in subdirectory 3D_testcase. This test suite is
+created by Prof. Coskun's team in BU.
+
+4. Speedup steady-state simulations with SuperLU
+
+Starting from version 6.0, HotSpot provides an option to speedup grid-mode's steady-state 
+simulations with direct solver. This solver is built on SuperLU, an open source library for 
+the direct solution of large, sparse systems of linear equations. Documentations, 
+installation instructions and source code can be found here: 
+http://crd-legacy.lbl.gov/~xiaoye/SuperLU/
+
+How to Use :
+-----------
+a. Download and build SuplerLU.
+   SuperLU requires BLAS (Basic Linear Algebra Subprograms) library.
+   If libblas is not installed, here is a quick guide on how to
+   build one: http://www.giammy.com/phd/blas-lapack-howto.html
+b. Modify Makefile parameter SuperLUroot 
+   SuperLUroot = /path/to/your/build/SuperLU_4.3
+c. Build HotSpot with option SUPERLU=1
+   >> make clean
+   >> make SUPERLU=1
+d. Run HotSpot simulation. (Input and output files are same as before)
+
+According to our internal tests, this new direct solver could be 10x-100x faster than 
+the iterative solver used by previous versions of HotSpot. However, due to its large 
+memory usage, direct solver will significantly slowdown when the problem size 
+(grid-size, number of layers in a 3D chip) is large. For this reason, we recommend 
+using direct solver in these two situations:
+a. When grid size is relatively small. (e.g. no larger than 256x256 for a 4-layer 3D chip).
+   If the host machine's memory is small (<8GB), even smaller grid-size is preferred.
+b. When detailed_3D mode is enabled.
+
+5. Source-level integration with a power/performance simulator:
         
 To assist in the easier integration of HotSpot into the user's
 existing codebase, HotSpot bundles its functions into a library -
@@ -460,8 +453,18 @@ if (model->type == BLOCK_MODEL || lines == 0)
 else
     compute_temp(model, power, NULL, model->config->sampling_intvl);
 
+6. Tips for modeling your own chip
 
-4. HotFloorplan:
+To model your own chip, you need to develop a floorplan for each silicon 
+layer (see ev6.flp for an example) and then provide a power trace for
+each block at each timestep (see gcc.ptrace for an example). The power
+is usually obtained with a power model such as Wattch or McPAT, but could 
+be obtained in CAD simulations, via infrared analysis, direct measurement, etc.
+You can use default cooling solution or specify your own cooling solution
+by changing parameters in hotspot.config. Be sure that no power value is
+provided to internal nodes.
+
+7. HotFloorplan:
 
 a) As mentioned above, one of the inputs to HotFloorplan is a 
    floorplan description file that has information about the 
@@ -554,7 +557,7 @@ While this document has attempted to provide a detailed overview of
 HotSpot's capabilities and guidelines for its use, the maximum amount
 of information can be obtained only from the source code itself. The
 source is well-commented with sufficient pointers to documentation.
-Particularly, the 'Makefile/Makefile.VC', sample input data files 
+Particularly, the 'Makefile', sample input data files 
 (eg: 'ev6.flp', 'gcc.ptrace' etc.) and the template simulator 
 'sim-template.c' are all quick sources of information. Moreover, just 
 running the binaries/scripts without any command line switches gives a 

@@ -130,4 +130,11 @@ unsigned int ones8(register unsigned char n);
  * in a file open for reading
  */
 int count_significant_lines(FILE *fp);
+
+/* For Matrix format conversion */
+int coo2csc(int size, int nnz, 
+            int *cooX, int *cooY, double *cooV,
+            int *cscRowInd, int *cscColPtr, double *cscV);
+int c2c_cmp( const void *a , const void *b);
+
 #endif

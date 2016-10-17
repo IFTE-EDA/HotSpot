@@ -556,14 +556,13 @@ flp_t *flp_create_grid(flp_t *flp, int ***map)
 					grid->units[count].bottomy = ptr2[0];
 					grid->units[count].width = ptr1[1]-ptr1[0];
 					grid->units[count].height = ptr2[1]-ptr2[0];
-				}
 					/* map between position in 'flp' to that in 'grid'	*/
 					ptr[i][++ptr[i][0]] = count;
 					grid_num++;
-					count++;
-				}
-			
-	}
+          count++;
+        }
+      }
+  }
 
 
 	/* sanity check	*/
@@ -1030,11 +1029,8 @@ int flp_count_units(FILE *fp)
 			continue;
 
 		/* functional block placement information	*/
-		/*BU_3D: Modified to consider units with more than 4 parameters.
-		Detailed 3D modeling allows 6 numerical parameters, 2 for block-level resistivity and specific heat values.
-		Would be good to add a check to make sure not more than 6 parameters are allowed.*/
 		if (sscanf(str2, "%s%lf%lf%lf%lf%lf%lf", name, &leftx, &bottomy,		
-		  		   &width, &height, &cp, &res) > 4) //end->BU_3D					
+		  		   &width, &height, &cp, &res) > 4)
 			count++;
 	}
 	return count;
@@ -1067,9 +1063,8 @@ void flp_populate_blks(flp_t *flp, FILE *fp)
 	int i=0;
 	char str[LINE_SIZE], copy[LINE_SIZE]; 
 	char name1[STR_SIZE], name2[STR_SIZE];
-	double width, height, leftx, bottomy;
+	double width, height, leftx, bottomy, cp, res, temp;
 	double wire_density;
-	double cp, res; //BU_3D: placeholders for resistivity and specific heat values 
 	char *ptr;
 
 	fseek(fp, 0, SEEK_SET);
@@ -1084,8 +1079,10 @@ void flp_populate_blks(flp_t *flp, FILE *fp)
 		if (!ptr || ptr[0] == '#')
 			continue;
 		cp = res = 0.0;
-		/* BU_3D: This option checks if there are 7 arguments.*/
-		if (sscanf(copy, "%s%lf%lf%lf%lf%lf%lf", name1, &width, &height,
+		if (sscanf(copy, "%s%lf%lf%lf%lf%lf%lf%lf", name1, &width, &height,
+					   &leftx, &bottomy, &cp, &res, &temp) > 7)
+			fatal("invalid floorplan file format\n"); 
+    else if (sscanf(copy, "%s%lf%lf%lf%lf%lf%lf", name1, &width, &height,
 					   &leftx, &bottomy, &cp, &res) == 7)
 		{
 				strcpy(flp->units[i].name, name1);
@@ -1093,8 +1090,8 @@ void flp_populate_blks(flp_t *flp, FILE *fp)
 				flp->units[i].height = height;
 				flp->units[i].leftx = leftx;
 				flp->units[i].bottomy = bottomy;
-				flp->units[i].specificheat = cp;
-				flp->units[i].resistivity = res;
+				flp->units[i].specificheat = cp; //BU_3D set specific heat
+				flp->units[i].resistivity = res; //BU_3D set resistivity
 				flp->units[i].hasRes = TRUE;
 				flp->units[i].hasSh = TRUE;
 				i++; 
@@ -1108,10 +1105,10 @@ void flp_populate_blks(flp_t *flp, FILE *fp)
 				flp->units[i].height = height;
 				flp->units[i].leftx = leftx;
 				flp->units[i].bottomy = bottomy;
-				flp->units[i].specificheat = 0.0;//BU_3D - Else resistance and specific heat where specified so they
-				flp->units[i].resistivity = 0.0;
-				flp->units[i].hasRes = FALSE;
-				flp->units[i].hasSh = FALSE;
+				flp->units[i].specificheat = 0.0;	//BU_3D else - set specific heat to default value 0.0
+				flp->units[i].resistivity = 0.0; 	//BU_3D set resistivity to default value 0.0
+				flp->units[i].hasRes = FALSE; 		//BU_3D set boolean for has resistivity flag to false
+				flp->units[i].hasSh = FALSE; 		//BU_3D set boolean for has specific heat flag to false
 				i++; 
 		}
 		/* skip connectivity info	*/

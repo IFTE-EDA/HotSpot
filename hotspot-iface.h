@@ -41,29 +41,56 @@ void free_flp(flp_t *flp, int compacted);
 /* thermal model configuration structure	*/
 typedef struct thermal_config_t_st
 {
-	double t_chip;
-	double thermal_threshold;
-	double c_convec;
-	double r_convec;
-	double s_sink;
-	double t_sink;
-	double s_spreader;
-	double t_spreader;
-	double t_interface;
-	double ambient;
+	double t_chip;	/* chip thickness in meters	*/
+	double k_chip;	/* chip thermal conductivity */
+	double p_chip;	/* chip specific heat */
+	double thermal_threshold;	/* temperature threshold for DTM (Kelvin)*/
+	double c_convec;	/* convection capacitance in J/K */
+	double r_convec;	/* convection resistance in K/W	*/
+	double s_sink;	/* heatsink side in meters	*/
+	double t_sink;	/* heatsink thickness in meters	*/
+	double k_sink;	/* heatsink thermal conductivity */
+	double p_sink;	/* heatsink specific heat */
+	double s_spreader;	/* spreader side in meters	*/
+	double t_spreader;	/* spreader thickness in meters	*/
+	double k_spreader;	/* spreader thermal conductivity */
+	double p_spreader;	/* spreader specific heat */
+	double t_interface;	/* interface material thickness in meters	*/
+	double k_interface;	/* interface material thermal conductivity */
+	double p_interface; /* interface material specific heat */
+	int model_secondary;
+	double r_convec_sec;
+	double c_convec_sec;
+	int n_metal;
+	double t_metal;
+	double t_c4;
+	double s_c4;
+	int n_c4;
+	double s_sub;
+	double t_sub;
+	double s_solder;
+	double t_solder;
+	double s_pcb;
+	double t_pcb;
+	double ambient;			/* ambient temperature in kelvin	*/
 	char init_file[STR_SIZE];
-	double init_temp;
+	double init_temp;		/* if init_file is NULL	*/
 	char steady_file[STR_SIZE];
-	double sampling_intvl;
-	double base_proc_freq;
-	int dtm_used;
+	double sampling_intvl;	/* interval per call to compute_temp	*/
+	double base_proc_freq;	/* in Hz	*/
+	int dtm_used;			/* flag to guide the scaling of init Ts	*/
 	char model_type[STR_SIZE];
-	int block_omit_lateral;
-	int grid_rows;
-	int grid_cols;
+	int leakage_used;
+	int leakage_mode;
+	int package_model_used; /* flag to indicate whether package model is used */
+	char package_config_file[STR_SIZE]; /* package/fan configurations */ 
+	int block_omit_lateral;	/* omit lateral resistance?	*/
+	int grid_rows;			/* grid resolution - no. of rows	*/
+	int grid_cols;			/* grid resolution - no. of cols	*/
 	char grid_layer_file[STR_SIZE];
 	char grid_steady_file[STR_SIZE];
 	char grid_map_mode[STR_SIZE];
+	int detailed_3D_used; //BU_3D: Added parameter to check for heterogenous R-C model 
 }thermal_config_t;
 
 /* thermal configuration routines */
@@ -94,7 +121,7 @@ typedef struct RC_model_t_st
  * 'placeholder' can be obtained from the 'read_flp' 
  * function
  */ 
-RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder);
+RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder, int do_detailed_3D);
 
 /* deletes the thermal model and frees up memory	*/
 void delete_RC_model(RC_model_t *model);

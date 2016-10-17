@@ -354,7 +354,7 @@ typedef struct RC_model_t_st
 
 /* constructor/destructor	*/
 /* placeholder is an empty floorplan frame with only the names of the functional units	*/
-RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder,int do_detailed_3D); //BU_3D: added do_detailed_3D
+RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder, int do_detailed_3D);
 void delete_RC_model(RC_model_t *model);
 
 /* initialization	*/

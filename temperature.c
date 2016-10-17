@@ -283,10 +283,8 @@ void thermal_config_add_from_strs(thermal_config_t *config, str_pair *table, int
 	if (strcasecmp(config->model_type, BLOCK_MODEL_STR) &&
 		strcasecmp(config->model_type, GRID_MODEL_STR))
 		fatal("invalid model type. use 'block' or 'grid'\n");
-	if(config->grid_rows <= 0 || config->grid_cols <= 0 ||
-	   (config->grid_rows & (config->grid_rows-1)) ||
-	   (config->grid_cols & (config->grid_cols-1)))
-		fatal("grid rows and columns should both be powers of two\n");
+	if(config->grid_rows <= 0 || config->grid_cols <= 0)
+		fatal("grid rows and columns should both be greater than zero\n");
 	if (strcasecmp(config->grid_map_mode, GRID_AVG_STR) &&
 		strcasecmp(config->grid_map_mode, GRID_MIN_STR) &&
 		strcasecmp(config->grid_map_mode, GRID_MAX_STR) &&
@@ -565,7 +563,7 @@ void debug_print_package_RC(package_RC_t *p)
  * can be an empty floorplan frame with only the names of the functional 
  * units. for the grid model, it is the default floorplan
  */
-RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder,int do_detailed_3D) //BU_3D: do_detailed_3D option added.
+RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder, int do_detailed_3D) //BU_3D: do_detailed_3D option added.
 {
 	RC_model_t *model= (RC_model_t *) calloc (1, sizeof(RC_model_t));
 	if (!model)
@@ -576,7 +574,7 @@ RC_model_t *alloc_RC_model(thermal_config_t *config, flp_t *placeholder,int do_d
 		model->config = &model->block->config;
 	} else if(!(strcasecmp(config->model_type, GRID_MODEL_STR))) {
 		model->type = GRID_MODEL;
-		model->grid = alloc_grid_model(config, placeholder,do_detailed_3D); //BU_3D: do_detailed_3D option added to grid model.
+		model->grid = alloc_grid_model(config, placeholder, do_detailed_3D);
 		model->config = &model->grid->config;
 	} else 
 		fatal("unknown model type\n");
@@ -821,7 +819,7 @@ void dump_power(RC_model_t *model, double *power, char *file)
  * read power vector alloced using 'hotspot_vector' from 'file'
  * which was dumped using 'dump_power'. 
  */ 
-void read_power (RC_model_t *model, double *power, char *file)
+void read_power(RC_model_t *model, double *power, char *file)
 {
 	if (model->type == BLOCK_MODEL)
 		read_power_block(model->block, power, file);

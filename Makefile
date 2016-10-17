@@ -7,14 +7,31 @@
 # relevant to your target and set the appropriate
 # path and flag options
 
+#SUPERLU: [0-1]
+ifndef SUPERLU
+SUPERLU = 0
+endif
+
+ifeq ($(SUPERLU), 1)
+#Super LU
+SuperLUroot	= /net/if10/rz3vg/Runjie/Temp/SuperLU_4.3
+SUPERLULIB 	= $(SuperLUroot)/lib/libsuperlu_4.3.a
+BLASLIB    	= -L $(SuperLUroot) -lblas
+SLU_HEADER  = $(SuperLUroot)/SRC
+
+MATHACCEL	= none
+INCDIR		= $(SLU_HEADER)
+LIBDIR		= 
+LIBS  		= -lm $(SUPERLULIB) $(BLASLIB)
+EXTRAFLAGS	= 
+else
 # default - no math acceleration
 MATHACCEL	= none
 INCDIR		= 
 LIBDIR		= 
 LIBS		= -lm
 EXTRAFLAGS	= 
-
-#DEBUG		= 1
+endif
 
 # Intel Machines - acceleration with the Intel
 # Math Kernel Library (MKL)
@@ -77,7 +94,6 @@ AR			= ar qcv
 RANLIB		= ranlib
 OEXT		= o
 LEXT		= a
-GPROFFLAG	= -pg
 # Verbosity level [0-3]
 ifndef VERBOSE
 VERBOSE	= 2
@@ -87,8 +103,6 @@ endif
 ifndef DEBUG3D
 DEBUG3D = 0
 endif
-
-
 
 # Numerical ID for each acceleration engine
 ifeq ($(MATHACCEL), none)
@@ -115,7 +129,7 @@ ifdef LIBDIR
 LIBDIRFLAG = -L$(LIBDIR)
 endif
 
-CFLAGS	= $(OFLAGS)  $(EXTRAFLAGS) $(INCDIRFLAG) $(LIBDIRFLAG) -DVERBOSE=$(VERBOSE) -DMATHACCEL=$(ACCELNUM) -DDEBUG3D=$(DEBUG3D) -g
+CFLAGS	= $(OFLAGS) $(EXTRAFLAGS) $(INCDIRFLAG) $(LIBDIRFLAG) -DVERBOSE=$(VERBOSE) -DMATHACCEL=$(ACCELNUM) -DDEBUG3D=$(DEBUG3D) -DSUPERLU=$(SUPERLU) -g
 
 # sources, objects, headers and inputs
 
@@ -182,8 +196,12 @@ lib: 	hotspot hotfloorplan
 	$(AR) libhotspot.$(LEXT) $(OBJ)
 	$(RANLIB) libhotspot.$(LEXT)
 
+#pull in dependency info for existing .o files
+-include $(OBJ:.o=.d)
+
 .c.$(OEXT):
 	$(CC) $(CFLAGS) -c $*.c
+	$(CC) -MM $(CFLAGS) $*.c > $*.d
 
 .cpp.$(OEXT):
 	$(CC) $(CFLAGS) -c $*.cpp
@@ -195,9 +213,9 @@ filelist:
 		  hotspot.h hotspot.c hotfloorplan.h hotfloorplan.c \
 		  sim-template_block.c \
 		  tofig.pl grid_thermal_map.pl \
-		  Makefile Makefile.VC
+		  Makefile
 clean:
-	$(RM) *.$(OEXT) *.obj core *~ Makefile.bak hotspot hotfloorplan libhotspot.$(LEXT)
+	$(RM) *.$(OEXT) *.obj *.d core *~ Makefile.bak hotspot hotfloorplan libhotspot.$(LEXT)
 
 cleano:
 	$(RM) *.$(OEXT) *.obj
