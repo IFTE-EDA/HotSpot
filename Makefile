@@ -14,8 +14,8 @@ endif
 
 ifeq ($(SUPERLU), 1)
 #Super LU
-SuperLUroot	= /net/if10/rz3vg/Runjie/Temp/SuperLU_4.3
-SUPERLULIB 	= $(SuperLUroot)/lib/libsuperlu_4.3.a
+SuperLUroot	= /home/johann/code/SuperLU_5.2.1
+SUPERLULIB 	= $(SuperLUroot)/build/SRC/libsuperlu.a
 BLASLIB    	= -L $(SuperLUroot) -lblas
 SLU_HEADER  = $(SuperLUroot)/SRC
 
