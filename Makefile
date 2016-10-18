@@ -9,7 +9,7 @@
 
 #SUPERLU: [0-1]
 ifndef SUPERLU
-SUPERLU = 0
+SUPERLU = 1
 endif
 
 ifeq ($(SUPERLU), 1)
