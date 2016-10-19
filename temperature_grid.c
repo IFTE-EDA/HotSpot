@@ -1329,7 +1329,7 @@ void dump_temp_grid(grid_model_t *model, double *temp, char *file)
   }
 
   // JOHANN
-  fprintf(fp, "\nhottest block: %s\t%.2f\n", hottest_block, max_temp);
+  fprintf(stdout, "\nhottest block: %s\t%.2f\n", hottest_block, max_temp);
 
   if(fp != stdout && fp != stderr)
     fclose(fp);	
