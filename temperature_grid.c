@@ -1067,7 +1067,7 @@ void set_temp_grid(grid_model_t *model, double *temp, double val)
 /* dump the steady state grid temperatures of the top layer onto 'file'	*/
 void dump_top_layer_temp_grid (grid_model_t *model, char *file, grid_model_vector_t *temp)
 {
-  int i, j, layer;
+  int i, j, layer, layer_offset;
   char str[STR_SIZE];
   FILE *fp;
   int silidx;
@@ -1087,7 +1087,15 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file, grid_model_vecto
 	// JOHANN
 	// dump grids of all layers separately; for Corblivar and plotting of thermal
 	// results using gnuplot
-	for (layer = 0; layer < model->n_layers; layer++) {
+	//
+	// in case secondary heat paths are considered, we have to skip the three layers
+	// at the bottom: PCB, solder balls, substrate
+	layer_offset = 0;
+	if (model->config.model_secondary) {
+		layer_offset = 3;
+	}
+
+	for (layer = layer_offset; layer < model->n_layers; layer++) {
 
   if (!strcasecmp(file, "stdout"))
     fp = stdout;
@@ -1097,7 +1105,8 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file, grid_model_vecto
 	// JOHANN
 	// separate files for layers
 	std::stringstream layer_file;
-	layer_file << file << ".gp_data.layer_" << layer;
+	// keep file names consistent, independent of secondary heat path
+	layer_file << file << ".gp_data.layer_" << layer - layer_offset;
 
 	fp = fopen (layer_file.str().c_str(), "w");
   }
@@ -1150,7 +1159,7 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file, grid_model_vecto
 	// JOHANN
 	// dump grids of all layers separately; for Corblivar and Octave scripts to
 	// parameterize thermal masks
-	for (layer = 0; layer < model->n_layers; layer++) {
+	for (layer = layer_offset; layer < model->n_layers; layer++) {
 
 		if (!strcasecmp(file, "stdout"))
 			fp = stdout;
@@ -1160,7 +1169,8 @@ void dump_top_layer_temp_grid (grid_model_t *model, char *file, grid_model_vecto
 			// JOHANN
 			// separate files for layers
 			std::stringstream layer_file;
-			layer_file << file << ".layer_" << layer;
+			// keep file names consistent, independent of secondary heat path
+			layer_file << file << ".layer_" << layer - layer_offset;
 
 			fp = fopen (layer_file.str().c_str(), "w");
 		}
